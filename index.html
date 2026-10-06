@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json">
     <title>GP-200 Stage Pro</title>
     
-    <!-- PWA FULL SCREEN CONFIG FOR ANDROID/IOS -->
+    <!-- PWA CONFIG -->
+    <link rel="manifest" href="manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -162,8 +162,8 @@
         .slider-group { margin-bottom: 12px; }
         .slider-lbl { display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 6px; color: var(--text-muted); font-weight: 800; text-transform: uppercase; }
         .slider-val { color: var(--accent-cyan); font-family: monospace; font-size: 10px; }
-        .slider { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: var(--border-line); outline: none; margin-top: 4px; margin-bottom: 6px; display: block; }
-        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent-cyan); cursor: pointer; }
+        .slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: var(--border-line); outline: none; margin-top: 4px; margin-bottom: 6px; display: block; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent-cyan); cursor: pointer; }
 
         .tap-btn { border-color: var(--accent-cyan); color: var(--accent-cyan); background: var(--accent-cyan-dim); }
         .tap-btn.pulsing { border-color: #fff !important; background: rgba(0, 212, 255, 0.4) !important; transform: scale(0.98); }
@@ -358,7 +358,7 @@
 
     <footer class="app-footer">
         <div>GP-200 STAGE PRO &bull; Created & Designed by <span>Christian Javier</span></div>
-        <div style="color: var(--accent-cyan); font-weight: 700;">v1.6 Safe Engine</div>
+        <div style="color: var(--accent-cyan); font-weight: 700;">v1.7 Optimized</div>
     </footer>
 
     <!-- MODALS -->
@@ -424,7 +424,7 @@
             pro: localStorage.getItem('gp200_pro') === '1',
             bank: 1, activeGlobal: null, isSetlistMode: false, setIdx: 0, sets: [],
             mods: {}, expB: false,
-            audio: null, padBuffers: {}, activeSource: null, padGain: null, padFilterNode: null, 
+            audio: null, padBuffers: {}, loadingBuffers: {}, activeSource: null, padGain: null, padFilterNode: null,
             padKey: null, padVol: 0.8, padTone: 0.5, padFreqOffset: 0,
             midi: null, port: null, tap: [], timer: null, alertCb: null
         };
@@ -438,7 +438,7 @@
                 buildUI();
                 initSets();
                 initMIDI();
-                log("System Boot Complete. v1.6 Safe Engine.");
+                log("System Boot Complete. v1.7 Optimized.");
             } catch (err) {
                 log("BOOT ERROR: " + err.message);
             }
@@ -456,16 +456,19 @@
                 initAudioContext();
                 log("Background caching MP3 pads...");
                 for (let k of pads) {
+                    if (state.padBuffers[k] || state.loadingBuffers[k]) continue;
+                    state.loadingBuffers[k] = true;
                     try {
                         const response = await fetch(`audio/pad_${k}.mp3`);
-                        if (!response.ok) continue;
+                        if (!response.ok) { state.loadingBuffers[k] = false; continue; }
                         const arrayBuffer = await response.arrayBuffer();
                         const audioBuffer = await state.audio.decodeAudioData(arrayBuffer);
                         state.padBuffers[k] = audioBuffer;
                         log(`Cached: pad_${k}.mp3`);
                     } catch (e) {
-                        // ignore missing files during early testing
+                        // Silent catch for missing audio files during preloading
                     }
+                    state.loadingBuffers[k] = false;
                 }
             } catch (err) {
                 log("Preload error: " + err.message);
@@ -863,7 +866,7 @@
                 ] 
             }];
             try {
-                const ls = JSON.parse(localStorage.getItem('gp200_sets_v41'));
+                const ls = JSON.parse(localStorage.getItem('gp200_sets_v42'));
                 if (Array.isArray(ls) && ls.length > 0) {
                     state.sets = ls.map(s => ({
                         name: s.name || "SETLIST",
@@ -888,7 +891,7 @@
             renderSetTabs(); 
             refreshUI();
         }
-        const saveSets = () => localStorage.setItem('gp200_sets_v41', JSON.stringify(state.sets));
+        const saveSets = () => localStorage.setItem('gp200_sets_v42', JSON.stringify(state.sets));
 
         function renderSetTabs() {
             const setlistTabs = $('setlistTabs'); if(!setlistTabs) return;
