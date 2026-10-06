@@ -185,6 +185,10 @@
         .changelog-item:last-child { border-bottom: none; }
         .changelog-ver { color: var(--accent-cyan); font-weight: 800; min-width: 38px; }
 
+        /* PROGRESS BAR STYLES */
+        .progress-bar-container { background: var(--bg-base); border: 1px solid var(--border-line); border-radius: var(--radius-md); height: 8px; width: 100%; overflow: hidden; margin-top: 6px; margin-bottom: 4px; }
+        .progress-bar-fill { background: var(--accent-cyan); height: 100%; width: 0%; transition: width 0.3s ease; }
+
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 8px; }
         .modal-box { background: var(--bg-surface); width: 100%; max-width: 320px; padding: 14px; border-radius: var(--radius-lg); border: 1px solid var(--accent-cyan); }
         
@@ -307,9 +311,12 @@
 
                 <div class="card">
                     <div class="card-title">Offline Audio Cache</div>
-                    <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">Background auto-cache is active. You can also manually download all pads here.</p>
-                    <button class="btn-primary" style="border-color: var(--accent-cyan); color: var(--accent-cyan); background: var(--accent-cyan-dim);" onclick="downloadAllPadsOffline()">DOWNLOAD ALL PADS (OFFLINE)</button>
-                    <div id="cacheStatus" style="font-size: 9px; color: var(--accent-cyan); margin-top: 4px; font-weight: 700;">Status: Checking Cache...</div>
+                    <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">Background auto-cache runs smoothly when idle. You can also monitor or trigger manual sync below.</p>
+                    <button class="btn-primary" style="border-color: var(--accent-cyan); color: var(--accent-cyan); background: var(--accent-cyan-dim);" onclick="downloadAllPadsOffline()">SYNC ALL PADS (OFFLINE)</button>
+                    <div id="cacheStatus" style="font-size: 9px; color: var(--accent-cyan); margin-top: 6px; font-weight: 700;">Status: Initializing...</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" id="cacheProgressBar"></div>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -444,7 +451,7 @@
 
     <script>
         const APP_VERSION = 'v1.7';
-        const STORAGE_KEY = 'gp200_stage_pro_sets'; // Single, permanent storage key
+        const STORAGE_KEY = 'gp200_stage_pro_sets';
         const $ = id => document.getElementById(id);
 
         const log = msg => { 
@@ -475,9 +482,13 @@
                 initMIDI();
 
                 initAudioContext();
-                backgroundCacheAllPads();
 
-                log(`System Boot Complete. ${APP_VERSION} Fully Optimized.`);
+                // Lazy background cache with delay to prevent boot lag
+                setTimeout(() => {
+                    backgroundCacheAllPads();
+                }, 2000);
+
+                log(`System Boot Complete. ${APP_VERSION} Crossfade & Lag-Free.`);
             } catch (err) {
                 log("BOOT ERROR: " + err.message);
             }
@@ -486,12 +497,16 @@
         async function backgroundCacheAllPads() {
             if (!('caches' in window)) return;
             const cacheStatus = $('cacheStatus');
-            if (cacheStatus) cacheStatus.innerText = "Status: Auto-caching in background...";
+            const progressBar = $('cacheProgressBar');
+            if (cacheStatus) cacheStatus.innerText = "Status: Idle background caching starting...";
 
             try {
                 const cache = await caches.open('gp200-audio-cache-v1');
                 let count = 0;
-                for (let k of pads) {
+                const total = pads.length;
+
+                for (let i = 0; i < total; i++) {
+                    const k = pads[i];
                     const url = `audio/pad_${k}.mp3`;
                     try {
                         let response = await cache.match(url);
@@ -507,11 +522,18 @@
                             }
                         }
                     } catch(e) {}
+
+                    let percent = Math.round((count / total) * 100);
+                    if (cacheStatus) cacheStatus.innerText = `Status: Caching Pads (${count}/${total} - ${percent}%)`;
+                    if (progressBar) progressBar.style.width = percent + '%';
+
+                    await new Promise(resolve => setTimeout(resolve, 80));
                 }
+
                 if (cacheStatus) {
-                    cacheStatus.innerText = `Status: Offline Ready (${count}/12 Cached)`;
+                    cacheStatus.innerText = `Status: Offline Ready (${count}/${total} Cached)`;
                 }
-                log(`Background Cache: ${count} of 12 pads ready for offline use.`);
+                log(`Background Cache: ${count} of 12 pads successfully cached offline.`);
             } catch(e) {
                 if (cacheStatus) cacheStatus.innerText = "Status: Cache Ready";
             }
@@ -519,15 +541,19 @@
 
         async function downloadAllPadsOffline() {
             initAudioContext();
-            log("Manual offline download triggered...");
-            let successCount = 0;
+            log("Manual offline sync triggered...");
             const cacheStatus = $('cacheStatus');
-            if(cacheStatus) cacheStatus.innerText = "Status: Downloading All...";
+            const progressBar = $('cacheProgressBar');
+            if(cacheStatus) cacheStatus.innerText = "Status: Downloading All Pads...";
 
             if ('caches' in window) {
                 try {
                     const cache = await caches.open('gp200-audio-cache-v1');
-                    for (let k of pads) {
+                    let successCount = 0;
+                    const total = pads.length;
+
+                    for (let i = 0; i < total; i++) {
+                        const k = pads[i];
                         const url = `audio/pad_${k}.mp3`;
                         try {
                             await cache.add(url);
@@ -538,8 +564,16 @@
                                 successCount++;
                             }
                         } catch(e) {}
+
+                        let percent = Math.round((successCount / total) * 100);
+                        if (cacheStatus) cacheStatus.innerText = `Status: Downloading (${successCount}/${total} - ${percent}%)`;
+                        if (progressBar) progressBar.style.width = percent + '%';
+
+                        await new Promise(resolve => setTimeout(resolve, 50));
                     }
-                    if(cacheStatus) cacheStatus.innerText = `Status: Offline Ready (${successCount}/12 Cached)`;
+
+                    if(cacheStatus) cacheStatus.innerText = `Status: Offline Ready (${successCount}/${total} Cached)`;
+                    if(progressBar) progressBar.style.width = '100%';
                     showAlert("OFFLINE READY", `Successfully cached ${successCount} of 12 pad audio files!`);
                 } catch(err) {
                     if(cacheStatus) cacheStatus.innerText = "Status: Cache Error";
@@ -815,14 +849,16 @@
         async function playPad(k) {
             initAudioContext();
             const now = state.audio.currentTime;
+            const crossfadeDuration = 1.5;
 
+            // CROSSFADE: Smoothly fade out the currently playing pad instead of cutting it abruptly
             if (state.padGain && state.activeSource) {
                 const oldGain = state.padGain;
                 oldGain.gain.cancelScheduledValues(now);
                 oldGain.gain.setValueAtTime(oldGain.gain.value, now);
-                oldGain.gain.linearRampToValueAtTime(0.0001, now + 1.5);
+                oldGain.gain.linearRampToValueAtTime(0.0001, now + crossfadeDuration);
                 const oldSrc = state.activeSource;
-                setTimeout(() => { try { oldSrc.stop(); oldSrc.disconnect(); } catch(e){} }, 1600);
+                setTimeout(() => { try { oldSrc.stop(); oldSrc.disconnect(); } catch(e){} }, (crossfadeDuration + 0.1) * 1000);
             }
 
             state.padKey = k;
@@ -830,7 +866,7 @@
             const padEl = $(`pad_${k}`); if(padEl) padEl.classList.add('active-pad');
             const padStatus = $('padStatus'), stopPadBtn = $('stopPadBtn');
             if(padStatus) padStatus.innerText = `PLAYING [${k}]`; if(stopPadBtn) stopPadBtn.style.display = 'block';
-            log(`PAD: Started [${k}]`);
+            log(`PAD: Started [${k}] with Crossfade`);
 
             let buffer = state.padBuffers[k];
             if (!buffer) {
@@ -868,7 +904,8 @@
 
             const gainNode = state.audio.createGain();
             gainNode.gain.setValueAtTime(0.0001, now);
-            gainNode.gain.linearRampToValueAtTime(Math.max(0.001, state.padVol * 0.8), now + 1.5);
+            // CROSSFADE: Simultaneously fade in the new pad smoothly
+            gainNode.gain.linearRampToValueAtTime(Math.max(0.001, state.padVol * 0.8), now + crossfadeDuration);
 
             source.connect(filter);
             filter.connect(gainNode);
@@ -898,7 +935,7 @@
             state.padKey = null;
             state.padFilterNode = null;
             document.querySelectorAll('.pad-btn').forEach(b => b.classList.remove('active-pad'));
-            const padStatus = $('padStatus'), stopPadBtn =$('stopPadBtn');
+            const padStatus = $('padStatus'), stopPadBtn = $('stopPadBtn');
             if(padStatus) padStatus.innerText = `STATUS: OFF`; if(stopPadBtn) stopPadBtn.style.display = 'none';
             if (logIt) log(`PAD: Stopped`);
         }
