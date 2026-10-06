@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GP-200 Stage Pro</title>
-    
+
     <!-- PWA CONFIG -->
     <link rel="manifest" href="manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
@@ -35,7 +35,7 @@
             --radius-lg: 10px;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
 
         body { 
             font-family: 'Montserrat', sans-serif; 
@@ -104,16 +104,17 @@
         .card-title { font-size: 11px; color: #fff; text-transform: uppercase; font-weight: 800; border-bottom: 1px solid var(--border-line); padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         .pro-badge { background: var(--accent-purple); color: #000; font-size: 7px; font-weight: 800; padding: 1px 4px; border-radius: 3px; }
 
-        /* CUSTOM SCROLLBAR */
-        aside::-webkit-scrollbar, main::-webkit-scrollbar, body::-webkit-scrollbar { width: 3px; }
-        aside::-webkit-scrollbar-thumb, main::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb { background: var(--border-line); border-radius: 2px; }
+        /* CUSTOM SCROLLBAR WITH VENDOR PREFIXES */
+        aside::-webkit-scrollbar, main::-webkit-scrollbar, body::-webkit-scrollbar, .scrollable::-webkit-scrollbar { width: 3px; }
+        aside::-webkit-scrollbar-thumb, main::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb, .scrollable::-webkit-scrollbar-thumb { background: var(--border-line); border-radius: 2px; }
 
         /* PADS GRID (4x3) */
         .pads-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
         .pad-btn { background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border-line); padding: 7px 0; border-radius: var(--radius-md); font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s; text-align: center; }
-        .pad-btn:active { transform: scale(0.95); }
-        .pad-btn.active-pad { background: var(--accent-purple); color: #000; border-color: var(--accent-purple); box-shadow: 0 0 12px var(--accent-purple-glow); animation: pulsePad 1.5s infinite; }
+        .pad-btn:active { transform: scale(0.95); -webkit-transform: scale(0.95); }
+        .pad-btn.active-pad { background: var(--accent-purple); color: #000; border-color: var(--accent-purple); box-shadow: 0 0 12px var(--accent-purple-glow); -webkit-box-shadow: 0 0 12px var(--accent-purple-glow); animation: pulsePad 1.5s infinite; -webkit-animation: pulsePad 1.5s infinite; }
         @keyframes pulsePad { 0%, 100% { box-shadow: 0 0 8px var(--accent-purple-glow); } 50% { box-shadow: 0 0 20px rgba(167, 139, 250, 0.8); } }
+        @-webkit-keyframes pulsePad { 0%, 100% { -webkit-box-shadow: 0 0 8px var(--accent-purple-glow); } 50% { -webkit-box-shadow: 0 0 20px rgba(167, 139, 250, 0.8); } }
 
         /* TABS */
         .tab-nav { display: flex; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-line); margin-bottom: 6px; flex-shrink: 0; }
@@ -125,19 +126,19 @@
         /* PRESET BUTTONS (2x2) */
         .patch-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 4px;}
         .patch-btn { background: var(--bg-elevated); border: 2px solid transparent; border-radius: var(--radius-lg); padding: 10px; cursor: pointer; text-align: left; transition: 0.2s; min-height: 65px; display: flex; flex-direction: column; justify-content: center;}
-        .patch-btn:active { transform: scale(0.97); }
+        .patch-btn:active { transform: scale(0.97); -webkit-transform: scale(0.97); }
         .patch-num { font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
         .patch-name { font-size: 10px; color: var(--text-muted); margin-top: 3px; font-weight: 700; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .patch-sub-lbl { font-size: 9px; color: var(--accent-purple); margin-top: 2px; font-weight: 700; display: flex; gap: 6px; }
         
-        .patch-btn.active-patch { border-color: var(--accent-cyan); background: var(--accent-cyan-dim); box-shadow: 0 0 12px var(--accent-cyan-glow); }
+        .patch-btn.active-patch { border-color: var(--accent-cyan); background: var(--accent-cyan-dim); box-shadow: 0 0 12px var(--accent-cyan-glow); -webkit-box-shadow: 0 0 12px var(--accent-cyan-glow); }
         .patch-btn.active-patch .patch-num { color: var(--accent-cyan); }
         .patch-btn.active-patch .patch-name { color: #fff; }
 
         /* MODULE BLOCKS GRID */
         .module-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
         .mod-btn { background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border-line); padding: 6px 4px; border-radius: var(--radius-md); cursor: pointer; font-size: 10px; font-weight: 700; transition: 0.3s; text-align: center; white-space: nowrap; }
-        .mod-btn.active { background: var(--accent-cyan-dim); color: var(--accent-cyan); border-color: var(--accent-cyan); box-shadow: 0 0 6px var(--accent-cyan-glow); }
+        .mod-btn.active { background: var(--accent-cyan-dim); color: var(--accent-cyan); border-color: var(--accent-cyan); box-shadow: 0 0 6px var(--accent-cyan-glow); -webkit-box-shadow: 0 0 6px var(--accent-cyan-glow); }
 
         /* TUNER & LOOPER STYLES */
         .mod-btn.tuner-mod { border-color: var(--tuner-neon); color: var(--tuner-neon); }
@@ -153,12 +154,12 @@
         .bank-display { font-size: 13px; font-weight: 700; color: var(--accent-cyan); letter-spacing: 2px; cursor: pointer; }
 
         .btn-primary { background: var(--bg-elevated); color: #fff; border: 1px solid var(--border-line); padding: 7px; border-radius: var(--radius-md); cursor: pointer; width: 100%; font-size: 10px; font-weight: 700; text-transform: uppercase; transition: 0.2s; }
-        .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:active { transform: scale(0.98); -webkit-transform: scale(0.98); }
         
         input[type="text"], input[type="number"], select { width: 100%; padding: 5px; margin: 2px 0 4px; background: var(--bg-base); color: #fff; border: 1px solid var(--border-line); border-radius: var(--radius-md); font-size: 11px; font-family: inherit; outline: none; }
         input:focus, select:focus { border-color: var(--accent-cyan); }
 
-        /* WELL-SPACED SLIDERS FOR MASTER & KNOB PARAMETERS */
+        /* SLIDERS WITH VENDOR PREFIXES */
         .slider-group { margin-bottom: 12px; }
         .slider-lbl { display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 6px; color: var(--text-muted); font-weight: 800; text-transform: uppercase; }
         .slider-val { color: var(--accent-cyan); font-family: monospace; font-size: 10px; }
@@ -179,13 +180,18 @@
         .faq-item.open .faq-answer { display: block; }
         .faq-item.open .faq-question { color: var(--accent-cyan); }
 
+        /* CHANGELOG STYLES */
+        .changelog-item { font-size: 10px; color: var(--text-muted); border-bottom: 1px solid var(--border-line); padding: 6px 0; display: flex; gap: 8px; }
+        .changelog-item:last-child { border-bottom: none; }
+        .changelog-ver { color: var(--accent-cyan); font-weight: 800; min-width: 38px; }
+
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 8px; }
         .modal-box { background: var(--bg-surface); width: 100%; max-width: 320px; padding: 14px; border-radius: var(--radius-lg); border: 1px solid var(--accent-cyan); }
         
         #log { background: var(--bg-base); color: var(--text-muted); padding: 4px; height: 50px; overflow-y: auto; font-family: monospace; border-radius: var(--radius-md); border: 1px solid var(--border-line); font-size: 9px; line-height: 1.2; }
         
         .app-footer { text-align: center; padding: 4px 0; margin-top: auto; font-size: 9px; color: var(--text-muted); border-top: 1px solid var(--border-line); font-weight: 600; display: flex; justify-content: space-between; padding-left: 6px; padding-right: 6px; flex-shrink: 0; }
-        .app-footer span { color: var(--accent-cyan); font-weight: 700; }
+        .app-footer span { color: var(--accent-cyan); font-weight: 700; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -300,6 +306,20 @@
                 </div>
 
                 <div class="card">
+                    <div class="card-title">Offline Audio Cache</div>
+                    <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">Background auto-cache is active. You can also manually download all pads here.</p>
+                    <button class="btn-primary" style="border-color: var(--accent-cyan); color: var(--accent-cyan); background: var(--accent-cyan-dim);" onclick="downloadAllPadsOffline()">DOWNLOAD ALL PADS (OFFLINE)</button>
+                    <div id="cacheStatus" style="font-size: 9px; color: var(--accent-cyan); margin-top: 4px; font-weight: 700;">Status: Checking Cache...</div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Changelogs</div>
+                    <div id="changelogList" class="scrollable" style="max-height: 120px; overflow-y: auto; padding-right: 4px;">
+                        <!-- Filled dynamically from changelogs.txt -->
+                    </div>
+                </div>
+
+                <div class="card">
                     <div class="card-title">MIDI Setup</div>
                     <select id="midiOut"></select>
                     <button class="btn-primary" style="border-color: var(--accent-cyan); color: var(--accent-cyan);" onclick="initMIDI()">RE-SCAN MIDI</button>
@@ -323,7 +343,7 @@
 
                 <div class="card">
                     <div class="card-title">System Console Logs</div>
-                    <div id="log"></div>
+                    <div id="log" class="scrollable"></div>
                 </div>
             </div>
         </main>
@@ -358,10 +378,22 @@
 
     <footer class="app-footer">
         <div>GP-200 STAGE PRO &bull; Created & Designed by <span>Christian Javier</span></div>
-        <div style="color: var(--accent-cyan); font-weight: 700;">v1.7 Optimized</div>
+        <div style="color: var(--accent-cyan); font-weight: 700;" onclick="switchTab('tab-sys')">v1.7 Optimized</div>
     </footer>
 
     <!-- MODALS -->
+    <!-- NEW UPDATE POPUP MODAL -->
+    <div id="updateModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="card-title" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">APP UPDATED TO <span id="updateVersionText"></span></div>
+            <div style="font-size: 11px; color: #fff; margin-bottom: 6px; font-weight: 700;">What's New:</div>
+            <div id="updateNotes" style="font-size: 10px; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px; max-height: 150px; overflow-y: auto; padding-right: 4px;" class="scrollable">
+                <!-- Filled dynamically -->
+            </div>
+            <button class="btn-primary" style="background: var(--accent-cyan); color: #000;" onclick="closeModal('updateModal')">AWESOME, THANKS!</button>
+        </div>
+    </div>
+
     <div id="editModal" class="modal-overlay">
         <div class="modal-box">
             <div class="card-title" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">Edit Preset & BPM</div>
@@ -411,6 +443,8 @@
     </div>
 
     <script>
+        const APP_VERSION = 'v1.7';
+        const STORAGE_KEY = 'gp200_stage_pro_sets'; // Single, permanent storage key
         const $ = id => document.getElementById(id);
 
         const log = msg => { 
@@ -432,46 +466,150 @@
         const pads = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
         const letters = ['A', 'B', 'C', 'D'];
 
-        window.onload = () => {
+        window.onload = async () => {
             try {
+                await loadChangelogs();
                 updateHeaderEdition();
                 buildUI();
                 initSets();
                 initMIDI();
-                log("System Boot Complete. v1.7 Optimized.");
+
+                initAudioContext();
+                backgroundCacheAllPads();
+
+                log(`System Boot Complete. ${APP_VERSION} Fully Optimized.`);
             } catch (err) {
                 log("BOOT ERROR: " + err.message);
             }
         };
+
+        async function backgroundCacheAllPads() {
+            if (!('caches' in window)) return;
+            const cacheStatus = $('cacheStatus');
+            if (cacheStatus) cacheStatus.innerText = "Status: Auto-caching in background...";
+
+            try {
+                const cache = await caches.open('gp200-audio-cache-v1');
+                let count = 0;
+                for (let k of pads) {
+                    const url = `audio/pad_${k}.mp3`;
+                    try {
+                        let response = await cache.match(url);
+                        if (!response) {
+                            await cache.add(url);
+                            response = await cache.match(url);
+                        }
+                        if (response) {
+                            const arrayBuffer = await response.arrayBuffer();
+                            if (state.audio) {
+                                state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
+                                count++;
+                            }
+                        }
+                    } catch(e) {}
+                }
+                if (cacheStatus) {
+                    cacheStatus.innerText = `Status: Offline Ready (${count}/12 Cached)`;
+                }
+                log(`Background Cache: ${count} of 12 pads ready for offline use.`);
+            } catch(e) {
+                if (cacheStatus) cacheStatus.innerText = "Status: Cache Ready";
+            }
+        }
+
+        async function downloadAllPadsOffline() {
+            initAudioContext();
+            log("Manual offline download triggered...");
+            let successCount = 0;
+            const cacheStatus = $('cacheStatus');
+            if(cacheStatus) cacheStatus.innerText = "Status: Downloading All...";
+
+            if ('caches' in window) {
+                try {
+                    const cache = await caches.open('gp200-audio-cache-v1');
+                    for (let k of pads) {
+                        const url = `audio/pad_${k}.mp3`;
+                        try {
+                            await cache.add(url);
+                            const response = await cache.match(url);
+                            if (response) {
+                                const arrayBuffer = await response.arrayBuffer();
+                                state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
+                                successCount++;
+                            }
+                        } catch(e) {}
+                    }
+                    if(cacheStatus) cacheStatus.innerText = `Status: Offline Ready (${successCount}/12 Cached)`;
+                    showAlert("OFFLINE READY", `Successfully cached ${successCount} of 12 pad audio files!`);
+                } catch(err) {
+                    if(cacheStatus) cacheStatus.innerText = "Status: Cache Error";
+                }
+            } else {
+                showAlert("ERROR", "Cache API not supported by browser.");
+            }
+        }
+
+        async function loadChangelogs() {
+            try {
+                const response = await fetch('changelogs.txt');
+                if (!response.ok) throw new Error('Failed to load changelogs.txt');
+                const text = await response.text();
+
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                const changelogs = lines.map(line => {
+                    const parts = line.split(':');
+                    return {
+                        v: parts[0] ? parts[0].trim() : '',
+                        d: parts.slice(1).join(':').trim()
+                    };
+                }).filter(c => c.v !== '');
+
+                renderChangelogs(changelogs);
+                checkAppUpdate(changelogs);
+            } catch (e) {
+                log("SYS: Error loading changelogs.txt. Using fallback notes.");
+                const fallback = [{ v: APP_VERSION, d: 'Performance and layout optimizations.' }];
+                renderChangelogs(fallback);
+                checkAppUpdate(fallback);
+            }
+        }
+
+        function checkAppUpdate(changelogs) {
+            if (changelogs.length === 0) return;
+            const latestVerFromText = changelogs[0].v;
+            const lastVer = localStorage.getItem('gp200_last_version');
+
+            if (lastVer !== latestVerFromText) {
+                const updateVersionText = $('updateVersionText');
+                const updateNotes = $('updateNotes');
+
+                if (updateVersionText) updateVersionText.innerText = latestVerFromText;
+                if (updateNotes) updateNotes.innerHTML = changelogs[0].d;
+
+                openModal('updateModal');
+                localStorage.setItem('gp200_last_version', latestVerFromText);
+            }
+        }
+
+        function renderChangelogs(changelogs) {
+            const clist = $('changelogList');
+            if (clist) {
+                clist.innerHTML = changelogs.map(c => `
+                    <div class="changelog-item">
+                        <span class="changelog-ver">${c.v}</span>
+                        <span class="changelog-desc">${c.d}</span>
+                    </div>
+                `).join('');
+            }
+        }
 
         function initAudioContext() {
             if (!state.audio) {
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
                 state.audio = new AudioCtx();
             }
-        }
-
-        async function preloadAllPads() {
-            try {
-                initAudioContext();
-                log("Background caching MP3 pads...");
-                for (let k of pads) {
-                    if (state.padBuffers[k] || state.loadingBuffers[k]) continue;
-                    state.loadingBuffers[k] = true;
-                    try {
-                        const response = await fetch(`audio/pad_${k}.mp3`);
-                        if (!response.ok) { state.loadingBuffers[k] = false; continue; }
-                        const arrayBuffer = await response.arrayBuffer();
-                        const audioBuffer = await state.audio.decodeAudioData(arrayBuffer);
-                        state.padBuffers[k] = audioBuffer;
-                        log(`Cached: pad_${k}.mp3`);
-                    } catch (e) {
-                        // Silent catch for missing audio files during preloading
-                    }
-                    state.loadingBuffers[k] = false;
-                }
-            } catch (err) {
-                log("Preload error: " + err.message);
+            if (state.audio.state === 'suspended') {
+                state.audio.resume();
             }
         }
 
@@ -603,7 +741,13 @@
         function switchTab(id, el) {
             document.querySelectorAll('.tab-content, .tab-btn').forEach(e => e.classList.remove('active'));
             const targetTab = $(id); if(targetTab) targetTab.classList.add('active');
-            if(el) el.classList.add('active');
+            if(el) {
+                el.classList.add('active');
+            } else {
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    if (btn.innerText.toLowerCase() === id.replace('tab-', '')) btn.classList.add('active');
+                });
+            }
         }
 
         function switchMode(mode) {
@@ -660,7 +804,6 @@
         function togglePad(k) {
             if (!state.pro) return openModal('proModal');
             initAudioContext();
-            if (state.audio.state === 'suspended') state.audio.resume();
 
             if (state.padKey === k) {
                 stopPad();
@@ -685,15 +828,21 @@
             state.padKey = k;
             document.querySelectorAll('.pad-btn').forEach(b => b.classList.remove('active-pad'));
             const padEl = $(`pad_${k}`); if(padEl) padEl.classList.add('active-pad');
-            const padStatus = $('padStatus'), stopPadBtn =$('stopPadBtn');
+            const padStatus = $('padStatus'), stopPadBtn = $('stopPadBtn');
             if(padStatus) padStatus.innerText = `PLAYING [${k}]`; if(stopPadBtn) stopPadBtn.style.display = 'block';
             log(`PAD: Started [${k}]`);
 
             let buffer = state.padBuffers[k];
             if (!buffer) {
                 try {
-                    log(`Fetching pad_${k}.mp3...`);
-                    const response = await fetch(`audio/pad_${k}.mp3`);
+                    let response = null;
+                    if ('caches' in window) {
+                        const cache = await caches.open('gp200-audio-cache-v1');
+                        response = await cache.match(`audio/pad_${k}.mp3`);
+                    }
+                    if (!response) {
+                        response = await fetch(`audio/pad_${k}.mp3`);
+                    }
                     if (!response.ok) throw new Error("File not found");
                     const arrayBuffer = await response.arrayBuffer();
                     buffer = await state.audio.decodeAudioData(arrayBuffer);
@@ -866,7 +1015,7 @@
                 ] 
             }];
             try {
-                const ls = JSON.parse(localStorage.getItem('gp200_sets_v42'));
+                const ls = JSON.parse(localStorage.getItem(STORAGE_KEY));
                 if (Array.isArray(ls) && ls.length > 0) {
                     state.sets = ls.map(s => ({
                         name: s.name || "SETLIST",
@@ -891,7 +1040,7 @@
             renderSetTabs(); 
             refreshUI();
         }
-        const saveSets = () => localStorage.setItem('gp200_sets_v42', JSON.stringify(state.sets));
+        const saveSets = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sets));
 
         function renderSetTabs() {
             const setlistTabs = $('setlistTabs'); if(!setlistTabs) return;

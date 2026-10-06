@@ -1,0 +1,8 @@
+v1.7 : Optimized background auto-caching for all 12 pad audio files, integrated permanent single-key setlist storage (gp200_stage_pro_sets), and added vendor-prefixed CSS for seamless mobile and desktop performance.
+v1.6 : Added Changelogs feature, App Update Popup modal, and System Tab reorganization.
+v1.5 : Introduced Setlist Mode, Worship Pads audio engine, and MIDI connectivity features.
+v1.4 : Added Tap Tempo metronome, Expression pedal controls, and module blocks customization.
+v1.3 : Enhanced responsive layout for both landscape and portrait modes with custom scrollbars.
+v1.2 : Added Pro License activation system and advanced patch preset editing modals.
+v1.1 : Implemented Bank Mode navigation and standard MIDI CC mapping features.
+v1.0.0 : Initial release of GP-200 Stage Pro with core UI architecture and dark-cyan theme styling.
