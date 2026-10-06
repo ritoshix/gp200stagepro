@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GP-200 Stage Pro</title>
+    
+    <!-- PWA FULL SCREEN CONFIG FOR ANDROID/IOS -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0B0F19">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Rajdhani:wght@600;700&display=swap');
+
+        :root {
+            --bg-base: #0B0F19; 
+            --bg-surface: #151B2B; 
+            --bg-elevated: #1E2638;
+            --accent-cyan: #00D4FF; 
+            --accent-cyan-dim: rgba(0, 212, 255, 0.15);
+            --accent-cyan-glow: rgba(0, 212, 255, 0.4);
+            --accent-purple: #A78BFA;
+            --accent-purple-glow: rgba(167, 139, 250, 0.5);
+            --text-main: #F8FAFC;
+            --text-muted: #64748B;
+            --border-line: #2A364F;
+            --danger: #F43F5E;
+            --warning: #FBBF24;
+            --tuner-neon: #ffaa00;
+            --looper-neon: #ff0044;
+            --radius-md: 6px;
+            --radius-lg: 10px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+        body { 
+            font-family: 'Montserrat', sans-serif; 
+            background: var(--bg-base); 
+            color: var(--text-main); 
+            -webkit-tap-highlight-color: transparent;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; 
+            padding: 6px;
+            display: flex; 
+            flex-direction: column;
+        }
+
+        /* UTILITIES */
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+        .text-xs { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+        .rajdhani { font-family: 'Rajdhani', sans-serif; }
+        
+        /* HEADER */
+        .live-header { background: var(--bg-surface); padding: 6px 12px; border-radius: var(--radius-lg); border: 1px solid var(--border-line); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .live-badge-group { display: flex; align-items: center; gap: 8px; }
+        .midi-status { color: var(--accent-cyan); font-weight: 700; font-size: 12px; letter-spacing: 1px; }
+
+        /* RESPONSIVE GRID LAYOUT */
+        .dashboard-grid { 
+            display: grid; 
+            gap: 8px; 
+            flex: 1; 
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* LANDSCAPE MODE (STRICT 3-COLUMN FIT TO SCREEN) */
+        @media (orientation: landscape) {
+            body { overflow: hidden; }
+            .dashboard-grid { 
+                grid-template-columns: 260px 1fr 280px; 
+            }
+            aside, main {
+                display: flex;
+                flex-direction: column;
+                overflow-y: auto;
+                min-height: 0;
+            }
+        }
+
+        /* PORTRAIT MODE (STACKED SCROLLABLE LAYOUT) */
+        @media (orientation: portrait) {
+            body { 
+                height: auto; 
+                min-height: 100vh; 
+                overflow-y: auto; 
+            }
+            .dashboard-grid { 
+                grid-template-columns: 1fr; 
+                overflow: visible;
+            }
+            aside, main {
+                overflow-y: visible;
+            }
+        }
+
+        .card { background: var(--bg-surface); padding: 10px; border-radius: var(--radius-lg); border: 1px solid var(--border-line); margin-bottom: 6px; display: flex; flex-direction: column; }
+        .card:last-child { margin-bottom: 0; }
+        .card-title { font-size: 11px; color: #fff; text-transform: uppercase; font-weight: 800; border-bottom: 1px solid var(--border-line); padding-bottom: 4px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        .pro-badge { background: var(--accent-purple); color: #000; font-size: 7px; font-weight: 800; padding: 1px 4px; border-radius: 3px; }
+
+        /* CUSTOM SCROLLBAR */
+        aside::-webkit-scrollbar, main::-webkit-scrollbar, body::-webkit-scrollbar { width: 3px; }
+        aside::-webkit-scrollbar-thumb, main::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb { background: var(--border-line); border-radius: 2px; }
+
+        /* PADS GRID (4x3) */
+        .pads-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+        .pad-btn { background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border-line); padding: 7px 0; border-radius: var(--radius-md); font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s; text-align: center; }
+        .pad-btn:active { transform: scale(0.95); }
+        .pad-btn.active-pad { background: var(--accent-purple); color: #000; border-color: var(--accent-purple); box-shadow: 0 0 12px var(--accent-purple-glow); animation: pulsePad 1.5s infinite; }
+        @keyframes pulsePad { 0%, 100% { box-shadow: 0 0 8px var(--accent-purple-glow); } 50% { box-shadow: 0 0 20px rgba(167, 139, 250, 0.8); } }
+
+        /* TABS */
+        .tab-nav { display: flex; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-line); margin-bottom: 6px; flex-shrink: 0; }
+        .tab-btn { flex: 1; padding: 8px; text-align: center; font-weight: 800; font-size: 10px; color: var(--text-muted); cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; border-bottom: 2px solid transparent; white-space: nowrap; }
+        .tab-btn.active { color: var(--accent-cyan); border-bottom: 2px solid var(--accent-cyan); background: var(--accent-cyan-dim); }
+        .tab-content { display: none; flex-direction: column; min-height: 0; flex: 1; }
+        .tab-content.active { display: flex; }
+
+        /* PRESET BUTTONS (2x2) */
+        .patch-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 4px;}
+        .patch-btn { background: var(--bg-elevated); border: 2px solid transparent; border-radius: var(--radius-lg); padding: 10px; cursor: pointer; text-align: left; transition: 0.2s; min-height: 65px; display: flex; flex-direction: column; justify-content: center;}
+        .patch-btn:active { transform: scale(0.97); }
+        .patch-num { font-size: 20px; font-weight: 700; color: #fff; line-height: 1; }
+        .patch-name { font-size: 10px; color: var(--text-muted); margin-top: 3px; font-weight: 700; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .patch-sub-lbl { font-size: 9px; color: var(--accent-purple); margin-top: 2px; font-weight: 700; display: flex; gap: 6px; }
+        
+        .patch-btn.active-patch { border-color: var(--accent-cyan); background: var(--accent-cyan-dim); box-shadow: 0 0 12px var(--accent-cyan-glow); }
+        .patch-btn.active-patch .patch-num { color: var(--accent-cyan); }
+        .patch-btn.active-patch .patch-name { color: #fff; }
+
+        /* MODULE BLOCKS GRID */
+        .module-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+        .mod-btn { background: var(--bg-elevated); color: var(--text-muted); border: 1px solid var(--border-line); padding: 6px 4px; border-radius: var(--radius-md); cursor: pointer; font-size: 10px; font-weight: 700; transition: 0.3s; text-align: center; white-space: nowrap; }
+        .mod-btn.active { background: var(--accent-cyan-dim); color: var(--accent-cyan); border-color: var(--accent-cyan); box-shadow: 0 0 6px var(--accent-cyan-glow); }
+
+        /* TUNER & LOOPER STYLES */
+        .mod-btn.tuner-mod { border-color: var(--tuner-neon); color: var(--tuner-neon); }
+        .mod-btn.tuner-mod.active { background: rgba(255, 170, 0, 0.15); box-shadow: 0 0 6px rgba(255, 170, 0, 0.4); }
+        .mod-btn.looper-mod { border-color: var(--looper-neon); color: var(--looper-neon); }
+        .mod-btn.looper-mod.active { background: rgba(255, 0, 68, 0.15); box-shadow: 0 0 6px rgba(255, 0, 68, 0.4); }
+
+        .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
+
+        /* CONTROLS & INPUTS */
+        .bank-controls { background: var(--bg-base); padding: 4px; border-radius: var(--radius-md); border: 1px solid var(--border-line); margin-bottom: 6px; }
+        .bank-btn { background: var(--bg-elevated); color: var(--text-muted); border: none; width: 28px; height: 28px; font-size: 12px; border-radius: 4px; cursor: pointer; }
+        .bank-display { font-size: 13px; font-weight: 700; color: var(--accent-cyan); letter-spacing: 2px; cursor: pointer; }
+
+        .btn-primary { background: var(--bg-elevated); color: #fff; border: 1px solid var(--border-line); padding: 7px; border-radius: var(--radius-md); cursor: pointer; width: 100%; font-size: 10px; font-weight: 700; text-transform: uppercase; transition: 0.2s; }
+        .btn-primary:active { transform: scale(0.98); }
+        
+        input[type="text"], input[type="number"], select { width: 100%; padding: 5px; margin: 2px 0 4px; background: var(--bg-base); color: #fff; border: 1px solid var(--border-line); border-radius: var(--radius-md); font-size: 11px; font-family: inherit; outline: none; }
+        input:focus, select:focus { border-color: var(--accent-cyan); }
+
+        /* WELL-SPACED SLIDERS FOR MASTER & KNOB PARAMETERS */
+        .slider-group { margin-bottom: 12px; }
+        .slider-lbl { display: flex; justify-content: space-between; font-size: 9px; margin-bottom: 6px; color: var(--text-muted); font-weight: 800; text-transform: uppercase; }
+        .slider-val { color: var(--accent-cyan); font-family: monospace; font-size: 10px; }
+        .slider { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px; background: var(--border-line); outline: none; margin-top: 4px; margin-bottom: 6px; display: block; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent-cyan); cursor: pointer; }
+
+        .tap-btn { border-color: var(--accent-cyan); color: var(--accent-cyan); background: var(--accent-cyan-dim); }
+        .tap-btn.pulsing { border-color: #fff !important; background: rgba(0, 212, 255, 0.4) !important; transform: scale(0.98); }
+
+        .setlist-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 3px; margin-bottom: 6px; }
+        .setlist-tabs::-webkit-scrollbar { height: 3px; }
+        .set-tab { background: var(--bg-elevated); border: 1px solid var(--border-line); color: var(--text-muted); padding: 5px 8px; border-radius: var(--radius-md); font-size: 10px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+        .set-tab.active { background: var(--accent-cyan-dim); color: var(--accent-cyan); border-color: var(--accent-cyan); }
+
+        .faq-item { background: var(--bg-base); border: 1px solid var(--border-line); border-radius: var(--radius-md); margin-bottom: 4px; overflow: hidden; }
+        .faq-question { font-size: 10px; font-weight: 700; color: #fff; padding: 6px 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .faq-answer { font-size: 10px; color: var(--text-muted); padding: 0 8px 6px 8px; line-height: 1.3; border-top: 1px solid var(--border-line); display: none; margin-top: 3px; }
+        .faq-item.open .faq-answer { display: block; }
+        .faq-item.open .faq-question { color: var(--accent-cyan); }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 8px; }
+        .modal-box { background: var(--bg-surface); width: 100%; max-width: 320px; padding: 14px; border-radius: var(--radius-lg); border: 1px solid var(--accent-cyan); }
+        
+        #log { background: var(--bg-base); color: var(--text-muted); padding: 4px; height: 50px; overflow-y: auto; font-family: monospace; border-radius: var(--radius-md); border: 1px solid var(--border-line); font-size: 9px; line-height: 1.2; }
+        
+        .app-footer { text-align: center; padding: 4px 0; margin-top: auto; font-size: 9px; color: var(--text-muted); border-top: 1px solid var(--border-line); font-weight: 600; display: flex; justify-content: space-between; padding-left: 6px; padding-right: 6px; flex-shrink: 0; }
+        .app-footer span { color: var(--accent-cyan); font-weight: 700; }
+    </style>
+</head>
+<body>
+
+    <header class="live-header">
+        <div class="live-badge-group">
+            <span style="font-weight:800; font-size:13px;">GP-200 STAGE PRO</span>
+            <span id="headerEdition" style="font-size:9px; font-weight:700;">[FREE]</span>
+        </div>
+        <div class="midi-status rajdhani" id="midiStatusText">MIDI OFFLINE</div>
+    </header>
+
+    <div class="dashboard-grid">
+        
+        <!-- COLUMN 1: PADS & TOOLS -->
+        <aside>
+            <div class="card">
+                <div class="card-title">Worship Pads <span class="pro-badge">PRO</span></div>
+                <div class="pads-grid" id="padsContainer"></div>
+                
+                <div class="flex-between" style="margin: 4px 0 2px;">
+                    <span class="text-xs" style="color: var(--accent-purple);" id="padStatus">STATUS: OFF</span>
+                    <button class="btn-primary" id="stopPadBtn" style="border-color: var(--danger); color: var(--danger); background: transparent; width: auto; padding: 2px 5px; display: none;" onclick="stopPad()">STOP</button>
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-lbl"><span>Volume</span> <span class="slider-val" id="valPADVOL" style="color:var(--accent-purple);">80%</span></div>
+                    <input type="range" min="0" max="100" value="80" class="slider" style="--accent-cyan: var(--accent-purple);" oninput="updatePad('Vol', this.value)">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-lbl"><span>Tone Filter</span> <span class="slider-val" id="valPADTONE" style="color:var(--accent-purple);">50%</span></div>
+                    <input type="range" min="0" max="100" value="50" class="slider" style="--accent-cyan: var(--accent-purple);" oninput="updatePad('Tone', this.value)">
+                </div>
+
+                <div class="slider-group" style="margin-bottom: 2px;">
+                    <div class="slider-lbl"><span>Pad Freq Offset</span> <span class="slider-val" id="valPADFREQ" style="color:var(--accent-purple);">0 Hz</span></div>
+                    <input type="range" min="-10" max="10" value="0" class="slider" style="--accent-cyan: var(--accent-purple);" oninput="updatePad('Freq', this.value)">
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">System Tools</div>
+                <button class="btn-primary tap-btn" style="padding: 7px; margin-bottom: 4px;" onclick="handleTapTempo()" id="tapBtn">
+                    TAP TEMPO <br><span id="bpmDisplay" style="font-size:10px; font-family:monospace; font-weight:bold; margin-top:2px; display:block;">-- BPM</span>
+                </button>
+                
+                <div class="tools-grid rajdhani" id="toolsGrid"></div>
+            </div>
+        </aside>
+
+        <!-- COLUMN 2: CENTER WORKSPACE (MAIN TABS) -->
+        <main>
+            <div class="tab-nav">
+                <div class="tab-btn active" onclick="switchTab('tab-control', this)">Live</div>
+                <div class="tab-btn" onclick="switchTab('tab-sys', this)">System</div>
+            </div>
+
+            <!-- TAB 1: LIVE (BANK / SETLIST TOGGLE) -->
+            <div id="tab-control" class="tab-content active">
+                <div class="card">
+                    <div class="flex-between" style="margin-bottom: 8px; border-bottom: 1px solid var(--border-line); padding-bottom: 6px;">
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn-primary" id="modeBankBtn" style="background: var(--accent-cyan); color: #000; width: auto; padding: 6px 12px; font-size: 10px;" onclick="switchMode('bank')">BANK MODE</button>
+                            <button class="btn-primary" id="modeSetBtn" style="background: var(--bg-elevated); color: var(--text-muted); width: auto; padding: 6px 12px; font-size: 10px;" onclick="switchMode('setlist')">SETLIST MODE <span class="pro-badge" style="font-size:6px; padding: 2px 4px;">PRO</span></button>
+                        </div>
+                        <span class="text-xs" id="modeTitle" style="color: var(--accent-cyan);">STANDARD BANK</span>
+                    </div>
+
+                    <!-- BANK MODE VIEW -->
+                    <div id="bankViewContainer">
+                        <div class="bank-controls flex-between">
+                            <button class="bank-btn" onclick="changeBank(-1)">◄</button>
+                            <div class="bank-display rajdhani" id="bankDisplay" onclick="promptJumpBank()">BANK 01</div>
+                            <button class="bank-btn" onclick="changeBank(1)">►</button>
+                        </div>
+                        <div class="patch-grid" id="standardGrid"></div>
+                    </div>
+
+                    <!-- SETLIST MODE VIEW -->
+                    <div id="setlistViewContainer" style="display: none;">
+                        <div class="flex-between" style="margin-bottom: 4px;">
+                            <div style="display: flex; gap: 6px;">
+                                <span class="text-xs" style="color: var(--accent-cyan); cursor: pointer;" onclick="renameCurrentSet()">[ EDIT SET NAME ]</span>
+                                <span class="text-xs" style="color: var(--danger); cursor: pointer;" onclick="deleteSet()">[ DELETE SET ]</span>
+                            </div>
+                        </div>
+                        <div class="setlist-tabs" id="setlistTabs"></div>
+                        <div class="flex-between" style="margin-bottom: 4px;">
+                            <span class="text-xs" style="color: var(--accent-cyan);" id="activeSetTitle">// SELECT PRESET</span>
+                            <span class="text-xs" style="color: var(--accent-cyan); cursor: pointer; border: 1px solid var(--accent-cyan); padding: 2px 6px; border-radius: 4px;" onclick="openEditModal()">EDIT PRESET</span>
+                        </div>
+                        <div class="patch-grid" id="setlistGrid"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Module Blocks <span style="font-size:8px; color:var(--text-muted); text-transform:none;">(Max 3 in Free)</span></div>
+                    <div class="module-grid rajdhani" id="moduleGrid"></div>
+                </div>
+            </div>
+
+            <!-- TAB 2: SYSTEM (SYS & FAQ) -->
+            <div id="tab-sys" class="tab-content">
+                <div class="card">
+                    <div class="card-title" style="color: var(--accent-purple);">Pro License Activation</div>
+                    <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px;">Activate Pro Version to unlock Setlist Mode, Ambient Pads, Tuner, Looper, and advanced features.</p>
+                    <div style="display: flex; gap: 6px;">
+                        <input type="text" id="proInputInline" placeholder="ENTER PRO CODE (GP200PRO)" style="margin: 0; font-weight: 800; letter-spacing: 1px;">
+                        <button class="btn-primary" style="background: var(--accent-purple); color: #000; border: none; width: auto; padding: 0 12px;" onclick="activateProInline()">ACTIVATE</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">MIDI Setup</div>
+                    <select id="midiOut"></select>
+                    <button class="btn-primary" style="border-color: var(--accent-cyan); color: var(--accent-cyan);" onclick="initMIDI()">RE-SCAN MIDI</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Frequently Asked Questions</div>
+                    <div class="faq-item" onclick="toggleFaq(this)">
+                        <div class="faq-question">How to connect GP-200? <span>+</span></div>
+                        <div class="faq-answer">Select GP-200 from the MIDI list above, then click <strong>[ RE-SCAN MIDI ]</strong> using Chrome or Edge browser.</div>
+                    </div>
+                    <div class="faq-item" onclick="toggleFaq(this)">
+                        <div class="faq-question">No sound from Ambient Pads? <span>+</span></div>
+                        <div class="faq-answer">Check if your device is unmuted and Pro Version is activated before playing chord pads.</div>
+                    </div>
+                    <div class="faq-item" onclick="toggleFaq(this)">
+                        <div class="faq-question">What is the Pro License code? <span>+</span></div>
+                        <div class="faq-answer">Type the code: <code>GP200PRO</code> in the activation box above to unlock instantly.</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">System Console Logs</div>
+                    <div id="log"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- COLUMN 3: TWEAKS & MASTER CONTROLS -->
+        <aside>
+            <div class="card">
+                <div class="card-title">Master Controls</div>
+                <div class="slider-group">
+                    <div class="slider-lbl"><span>Output Volume</span> <span class="slider-val" id="valVOL">100</span></div>
+                    <input type="range" min="0" max="100" value="100" class="slider" oninput="updateUIVal('VOL', this.value)" onchange="sendCC(7, this.value, 'Vol')">
+                </div>
+
+                <div class="slider-group">
+                    <div class="slider-lbl"><span>EXP Sweep</span> <span class="slider-val" id="valEXP">0</span></div>
+                    <input type="range" min="0" max="127" value="0" class="slider" oninput="updateUIVal('EXP', this.value); sendCC(11, this.value, 'EXP')">
+                </div>
+
+                <div class="flex-between" style="margin-top: 6px; border-top: 1px solid var(--border-line); padding-top: 8px;">
+                    <span class="text-xs text-muted">EXP TARGET</span>
+                    <button id="expToggleBtn" style="background:transparent; color:var(--text-muted); border:1px solid var(--border-line); padding:3px 6px; border-radius:4px; font-size:9px; font-weight:700; cursor:pointer;" onclick="toggleExp()">TARGET: A</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Knob Parameters</div>
+                <div id="knobsContainer"></div>
+            </div>
+        </aside>
+
+    </div>
+
+    <footer class="app-footer">
+        <div>GP-200 STAGE PRO &bull; Created & Designed by <span>Christian Javier</span></div>
+        <div style="color: var(--accent-cyan); font-weight: 700;">v1.6 Safe Engine</div>
+    </footer>
+
+    <!-- MODALS -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="card-title" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">Edit Preset & BPM</div>
+            <label class="text-xs text-muted">Target Button</label>
+            <select id="editSlot" onchange="loadSlotData()"><option value="0">Button 1</option><option value="1">Button 2</option><option value="2">Button 3</option><option value="3">Button 4</option></select>
+            <label class="text-xs text-muted">Preset Name</label>
+            <input type="text" id="editName" placeholder="E.G. CLEAN INTRO">
+            <div style="display: flex; gap: 6px;">
+                <div style="flex: 1;"><label class="text-xs text-muted">Bank</label><input type="number" id="editBank" min="1" max="64" value="1"></div>
+                <div style="flex: 1;"><label class="text-xs text-muted">Slot</label><select id="editPatch"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select></div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+                <div style="flex: 1;"><label class="text-xs text-muted">BPM</label><input type="number" id="editBpm" min="40" max="240" placeholder="120"></div>
+                <div style="flex: 1;"><label class="text-xs text-muted">Pad</label>
+                    <select id="editPadKey"><option value="">-- NONE --</option><option value="C">C</option><option value="Db">Db</option><option value="D">D</option><option value="Eb">Eb</option><option value="E">E</option><option value="F">F</option><option value="Gb">Gb</option><option value="G">G</option><option value="Ab">Ab</option><option value="A">A</option><option value="Bb">Bb</option><option value="B">B</option></select>
+                </div>
+            </div>
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
+                <button class="btn-primary" style="background: var(--accent-cyan); color: #000;" onclick="saveSlotData()">SAVE</button>
+                <button class="btn-primary" style="width: auto; padding: 0 12px;" onclick="closeModal('editModal')">X</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="proModal" class="modal-overlay">
+        <div class="modal-box" style="border-color: var(--accent-purple); text-align: center;">
+            <div class="card-title" style="color:var(--accent-purple); justify-content:center; border:none; margin:0;">GP-200 STAGE PRO UNLOCK</div>
+            <p style="font-size:10px; line-height:1.3; margin:10px 0;">Unlock Setlist Mode, Ambient Pads, Tuner, Looper, and unlimited modules.</p>
+            <input type="text" id="proInput" placeholder="ENTER CODE" style="text-align:center; font-weight:800; letter-spacing:2px;">
+            <div style="display: flex; gap: 6px;">
+                <button class="btn-primary" style="background: var(--accent-purple); color: #000; border:none;" onclick="activatePro()">ACTIVATE</button>
+                <button class="btn-primary" style="width: auto; padding: 0 10px;" onclick="closeModal('proModal')">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="alertModal" class="modal-overlay">
+        <div class="modal-box" style="text-align: center;">
+            <div class="card-title" id="alertTitle" style="color:var(--accent-cyan); justify-content:center; border:none;">NOTICE</div>
+            <p id="alertMsg" style="font-size:11px; margin: 6px 0; line-height:1.3;"></p>
+            <input type="text" id="alertInput" style="display:none; text-align:center; font-size:13px; font-weight:800;">
+            <div style="display: flex; gap: 6px; margin-top: 8px;">
+                <button class="btn-primary" style="background: var(--accent-cyan); color: #000;" onclick="resolveAlert(true)">OK</button>
+                <button class="btn-primary" id="alertCancel" style="display:none;" onclick="resolveAlert(false)">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const $ = id => document.getElementById(id);
+
+        const log = msg => { 
+            const l = $('log'); if(!l) return;
+            const time = new Date().toLocaleTimeString();
+            l.innerHTML += `<div style="margin-bottom:2px; border-bottom:1px solid var(--border-line); padding-bottom:1px;"><span style="color:var(--text-muted);">[${time}]</span> <span style="color:var(--accent-cyan);">${msg}</span></div>`;
+            l.scrollTop = l.scrollHeight;
+        };
+
+        const state = {
+            pro: localStorage.getItem('gp200_pro') === '1',
+            bank: 1, activeGlobal: null, isSetlistMode: false, setIdx: 0, sets: [],
+            mods: {}, expB: false,
+            audio: null, padBuffers: {}, activeSource: null, padGain: null, padFilterNode: null, 
+            padKey: null, padVol: 0.8, padTone: 0.5, padFreqOffset: 0,
+            midi: null, port: null, tap: [], timer: null, alertCb: null
+        };
+
+        const pads = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+        const letters = ['A', 'B', 'C', 'D'];
+
+        window.onload = () => {
+            try {
+                updateHeaderEdition();
+                buildUI();
+                initSets();
+                initMIDI();
+                log("System Boot Complete. v1.6 Safe Engine.");
+            } catch (err) {
+                log("BOOT ERROR: " + err.message);
+            }
+        };
+
+        function initAudioContext() {
+            if (!state.audio) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                state.audio = new AudioCtx();
+            }
+        }
+
+        async function preloadAllPads() {
+            try {
+                initAudioContext();
+                log("Background caching MP3 pads...");
+                for (let k of pads) {
+                    try {
+                        const response = await fetch(`audio/pad_${k}.mp3`);
+                        if (!response.ok) continue;
+                        const arrayBuffer = await response.arrayBuffer();
+                        const audioBuffer = await state.audio.decodeAudioData(arrayBuffer);
+                        state.padBuffers[k] = audioBuffer;
+                        log(`Cached: pad_${k}.mp3`);
+                    } catch (e) {
+                        // ignore missing files during early testing
+                    }
+                }
+            } catch (err) {
+                log("Preload error: " + err.message);
+            }
+        }
+
+        function updateHeaderEdition() {
+            const headerEdition = $('headerEdition');
+            if (headerEdition) {
+                if (state.pro) {
+                    headerEdition.innerHTML = '[PRO]';
+                    headerEdition.style.color = 'var(--accent-purple)';
+                } else {
+                    headerEdition.innerHTML = '[FREE]';
+                    headerEdition.style.color = 'var(--text-muted)';
+                }
+            }
+        }
+
+        function buildUI() {
+            const padsContainer = $('padsContainer');
+            if(padsContainer) {
+                padsContainer.innerHTML = pads.map(k => `<div class="pad-btn" id="pad_${k}" onclick="togglePad('${k}')">${k}</div>`).join('');
+            }
+            
+            const standardGrid = $('standardGrid');
+            if(standardGrid) {
+                standardGrid.innerHTML = letters.map((l, i) => `
+                    <div class="patch-btn" id="stdBtn_${i}" onclick="selectPatch(${i})">
+                        <div class="patch-num rajdhani" id="stdLoc_${i}">1${l}</div>
+                        <div class="patch-name">Preset ${l}</div>
+                    </div>`).join('');
+            }
+
+            const setlistGrid = $('setlistGrid');
+            if(setlistGrid) {
+                setlistGrid.innerHTML = letters.map((l, i) => `
+                    <div class="patch-btn" id="setBtn_${i}" onclick="playSetSlot(${i})">
+                        <div class="patch-num rajdhani" id="setLoc_${i}">1${l}</div>
+                        <div class="patch-name" id="setName_${i}">PATCH ${i+1}</div>
+                        <div class="patch-sub-lbl"><span id="setPad_${i}">--</span><span id="setBpm_${i}"></span></div>
+                    </div>`).join('');
+            }
+
+            const moduleGrid = $('moduleGrid');
+            if(moduleGrid) {
+                const mods = [
+                    [57,'WAH',0,''], [48,'PRE',0,''], [49,'DIST',0,''], [50,'AMP',0,''], 
+                    [51,'GATE',0,''], [52,'CAB',0,''], [53,'EQ',0,''], [54,'MOD',0,''], 
+                    [55,'DLY',0,''], [56,'RVB',0,'']
+                ];
+                moduleGrid.innerHTML = mods.map(m => `
+                    <div class="mod-btn ${m[3]}" id="mod_${m[0]}" onclick="toggleMod(${m[0]}, ${m[2]}, '${m[1]}')">
+                        ${m[1]} ${m[2] ? '<span class="pro-badge" style="font-size:5px; background:var(--warning);">PRO</span>' : ''}
+                    </div>`).join('');
+            }
+
+            const toolsGrid = $('toolsGrid');
+            if(toolsGrid) {
+                const tools = [
+                    [58, 'TUNER', 1, 'tuner-mod'],
+                    [59, 'LOOPER', 1, 'looper-mod']
+                ];
+                toolsGrid.innerHTML = tools.map(t => `
+                    <div class="mod-btn ${t[3]}" id="mod_${t[0]}" onclick="toggleMod(${t[0]}, ${t[2]}, '${t[1]}')" style="padding: 7px 4px;">
+                        ${t[1]} <span class="pro-badge" style="font-size:5px; background:var(--warning);">PRO</span>
+                    </div>`).join('');
+            }
+
+            const knobsContainer = $('knobsContainer');
+            if(knobsContainer) {
+                knobsContainer.innerHTML = [16, 18, 20].map((cc, i) => `
+                    <div class="slider-group">
+                        <div class="slider-lbl"><span>Param ${i+1}</span> <span class="slider-val" id="valK${i}">50</span></div>
+                        <input type="range" min="0" max="127" value="50" class="slider" id="slK${i}" oninput="updateUIVal('K${i}', this.value)" onchange="sendCC(${cc}, this.value, 'Param ${i+1}')">
+                    </div>
+                `).join('');
+            }
+        }
+
+        function toggleFaq(element) {
+            element.classList.toggle('open');
+            const indicator = element.querySelector('.faq-question span');
+            if(indicator) indicator.innerText = element.classList.contains('open') ? '-' : '+';
+        }
+
+        const openModal = id => { const m = $(id); if(m) m.style.display = 'flex'; };
+        const closeModal = id => { const m = $(id); if(m) m.style.display = 'none'; };
+
+        function showAlert(title, msg, type = 'alert', defaultVal = '') {
+            return new Promise(res => {
+                const alertTitle = $('alertTitle'), alertMsg = $('alertMsg');
+                if(alertTitle) alertTitle.innerText = title; if(alertMsg) alertMsg.innerText = msg;
+                const inp = $('alertInput'), cancel = $('alertCancel');
+                if(inp) inp.style.display = type === 'prompt' ? 'block' : 'none';
+                if(cancel) cancel.style.display = (type === 'prompt' || type === 'confirm') ? 'block' : 'none';
+                if (type === 'prompt' && inp) { inp.value = defaultVal; setTimeout(() => inp.select(), 100); }
+                state.alertCb = res; openModal('alertModal');
+            });
+        }
+
+        function resolveAlert(res) {
+            closeModal('alertModal');
+            if (state.alertCb) {
+                const inp = $('alertInput');
+                state.alertCb(res ? (inp && inp.style.display === 'block' ? inp.value.trim() : true) : false);
+                state.alertCb = null;
+            }
+        }
+
+        async function activatePro() {
+            const proInput = $('proInput');
+            if (proInput && proInput.value.trim().toUpperCase() === 'GP200PRO') {
+                localStorage.setItem('gp200_pro', '1'); state.pro = true;
+                updateHeaderEdition();
+                closeModal('proModal'); showAlert("ACTIVATED", "Pro features unlocked successfully.");
+            } else showAlert("ERROR", "Invalid license code.");
+        }
+
+        async function activateProInline() {
+            const proInputInline = $('proInputInline');
+            if (proInputInline && proInputInline.value.trim().toUpperCase() === 'GP200PRO') {
+                localStorage.setItem('gp200_pro', '1'); state.pro = true;
+                updateHeaderEdition();
+                proInputInline.value = '';
+                showAlert("ACTIVATED", "Pro features unlocked successfully.");
+            } else {
+                showAlert("ERROR", "Invalid Pro license code.");
+            }
+        }
+
+        function switchTab(id, el) {
+            document.querySelectorAll('.tab-content, .tab-btn').forEach(e => e.classList.remove('active'));
+            const targetTab = $(id); if(targetTab) targetTab.classList.add('active');
+            if(el) el.classList.add('active');
+        }
+
+        function switchMode(mode) {
+            if (mode === 'setlist' && !state.pro) return openModal('proModal');
+            state.isSetlistMode = (mode === 'setlist');
+            
+            const bankView = $('bankViewContainer');
+            const setlistView = $('setlistViewContainer');
+            const modeBankBtn = $('modeBankBtn');
+            const modeSetBtn = $('modeSetBtn');
+            const modeTitle = $('modeTitle');
+
+            if (state.isSetlistMode) {
+                if(bankView) bankView.style.display = 'none';
+                if(setlistView) setlistView.style.display = 'block';
+                if(modeBankBtn) { modeBankBtn.style.background = 'var(--bg-elevated)'; modeBankBtn.style.color = 'var(--text-muted)'; }
+                if(modeSetBtn) { modeSetBtn.style.background = 'var(--accent-cyan)'; modeSetBtn.style.color = '#000'; }
+                if(modeTitle) modeTitle.innerText = 'SETLIST MODE';
+            } else {
+                if(bankView) bankView.style.display = 'block';
+                if(setlistView) setlistView.style.display = 'none';
+                if(modeBankBtn) { modeBankBtn.style.background = 'var(--accent-cyan)'; modeBankBtn.style.color = '#000'; }
+                if(modeSetBtn) { modeSetBtn.style.background = 'var(--bg-elevated)'; modeSetBtn.style.color = 'var(--text-muted)'; }
+                if(modeTitle) modeTitle.innerText = 'STANDARD BANK';
+            }
+            refreshUI();
+        }
+
+        async function initMIDI() {
+            try {
+                if (navigator.requestMIDIAccess) {
+                    state.midi = await navigator.requestMIDIAccess({ sysex: false });
+                    const sel = $('midiOut'); if(!sel) return; sel.innerHTML = '';
+                    for (let port of state.midi.outputs.values()) {
+                        if (!state.port) state.port = port;
+                        sel.innerHTML += `<option value="${port.id}">${port.name}</option>`;
+                    }
+                    const status = $('midiStatusText');
+                    if (state.port) { 
+                        if(status) { status.innerText = 'MIDI ONLINE'; status.style.color = 'var(--accent-cyan)'; }
+                        log(`MIDI Linked: ${state.port.name}`); 
+                    } else { 
+                        if(status) { status.innerText = 'MIDI OFFLINE'; status.style.color = 'var(--danger)'; }
+                    }
+                }
+            } catch (e) { log("MIDI API Blocked/Not Supported."); }
+        }
+
+        function sendCC(cc, val, name) {
+            if (state.port) state.port.send([0xB0, cc, parseInt(val)]);
+            log(`TX: ${name} [CC ${cc}] -> ${val}`);
+        }
+
+        function togglePad(k) {
+            if (!state.pro) return openModal('proModal');
+            initAudioContext();
+            if (state.audio.state === 'suspended') state.audio.resume();
+
+            if (state.padKey === k) {
+                stopPad();
+            } else {
+                playPad(k);
+            }
+        }
+
+        async function playPad(k) {
+            initAudioContext();
+            const now = state.audio.currentTime;
+
+            if (state.padGain && state.activeSource) {
+                const oldGain = state.padGain;
+                oldGain.gain.cancelScheduledValues(now);
+                oldGain.gain.setValueAtTime(oldGain.gain.value, now);
+                oldGain.gain.linearRampToValueAtTime(0.0001, now + 1.5);
+                const oldSrc = state.activeSource;
+                setTimeout(() => { try { oldSrc.stop(); oldSrc.disconnect(); } catch(e){} }, 1600);
+            }
+
+            state.padKey = k;
+            document.querySelectorAll('.pad-btn').forEach(b => b.classList.remove('active-pad'));
+            const padEl = $(`pad_${k}`); if(padEl) padEl.classList.add('active-pad');
+            const padStatus = $('padStatus'), stopPadBtn =$('stopPadBtn');
+            if(padStatus) padStatus.innerText = `PLAYING [${k}]`; if(stopPadBtn) stopPadBtn.style.display = 'block';
+            log(`PAD: Started [${k}]`);
+
+            let buffer = state.padBuffers[k];
+            if (!buffer) {
+                try {
+                    log(`Fetching pad_${k}.mp3...`);
+                    const response = await fetch(`audio/pad_${k}.mp3`);
+                    if (!response.ok) throw new Error("File not found");
+                    const arrayBuffer = await response.arrayBuffer();
+                    buffer = await state.audio.decodeAudioData(arrayBuffer);
+                    state.padBuffers[k] = buffer;
+                } catch(e) {
+                    log(`ERROR: Could not load audio/pad_${k}.mp3`);
+                    showAlert("AUDIO ERROR", `Missing file: audio/pad_${k}.mp3`);
+                    stopPad(false);
+                    return;
+                }
+            }
+
+            const source = state.audio.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+
+            const filter = state.audio.createBiquadFilter();
+            filter.type = 'lowpass';
+            const filterCut = 150 + (state.padTone * 2500);
+            filter.frequency.value = filterCut;
+            filter.Q.value = 0.6;
+            state.padFilterNode = filter;
+
+            const gainNode = state.audio.createGain();
+            gainNode.gain.setValueAtTime(0.0001, now);
+            gainNode.gain.linearRampToValueAtTime(Math.max(0.001, state.padVol * 0.8), now + 1.5);
+
+            source.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(state.audio.destination);
+
+            source.start(now);
+            state.activeSource = source;
+            state.padGain = gainNode;
+        }
+
+        function stopPad(logIt = true) {
+            if (state.padGain && state.activeSource && state.audio) {
+                const now = state.audio.currentTime;
+                state.padGain.gain.cancelScheduledValues(now);
+                state.padGain.gain.setValueAtTime(state.padGain.gain.value, now);
+                state.padGain.gain.linearRampToValueAtTime(0.0001, now + 2.0);
+                
+                const src = state.activeSource;
+                const g = state.padGain;
+                state.activeSource = null;
+                state.padGain = null;
+
+                setTimeout(() => {
+                    try { src.stop(); src.disconnect(); g.disconnect(); } catch(e){}
+                }, 2100);
+            }
+            state.padKey = null;
+            state.padFilterNode = null;
+            document.querySelectorAll('.pad-btn').forEach(b => b.classList.remove('active-pad'));
+            const padStatus = $('padStatus'), stopPadBtn =$('stopPadBtn');
+            if(padStatus) padStatus.innerText = `STATUS: OFF`; if(stopPadBtn) stopPadBtn.style.display = 'none';
+            if (logIt) log(`PAD: Stopped`);
+        }
+
+        function updatePad(type, val) {
+            const v = val / 100;
+            if (type === 'Vol') {
+                state.padVol = v;
+                $('valPADVOL').innerText = val + '%';
+                if (state.padGain && state.audio) {
+                    state.padGain.gain.setValueAtTime(Math.max(0.001, v * 0.8), state.audio.currentTime);
+                }
+            } else if (type === 'Tone') {
+                state.padTone = v;
+                $('valPADTONE').innerText = val + '%';
+                const filterCut = 150 + (v * 2500);
+                if (state.padFilterNode && state.audio) {
+                    state.padFilterNode.frequency.setTargetAtTime(filterCut, state.audio.currentTime, 0.1);
+                }
+            } else if (type === 'Freq') {
+                state.padFreqOffset = parseInt(val);
+                $('valPADFREQ').innerText = val + ' Hz';
+                if (state.activeSource && state.padKey && state.audio) {
+                    let rate = 1.0 + (state.padFreqOffset * 0.005);
+                    try { state.activeSource.playbackRate.setValueAtTime(rate, state.audio.currentTime); } catch(e){}
+                }
+            }
+        }
+
+        function updateUIVal(id, val) { const el = $(`val${id}`); if(el) el.innerText = val; }
+        
+        async function promptJumpBank() {
+            let res = await showAlert("JUMP BANK", "Enter Bank (1 - 64):", "prompt", state.bank);
+            if (res && !isNaN(res)) {
+                let parsed = parseInt(res);
+                if(parsed >= 1 && parsed <= 64) { state.bank = parsed; refreshUI(); }
+            }
+        }
+
+        function changeBank(amt) {
+            let n = state.bank + amt; if (n >= 1 && n <= 64) { state.bank = n; refreshUI(); }
+        }
+
+        function selectPatch(idx, isSet = false) {
+            let total = (state.bank - 1) * 4 + parseInt(idx);
+            if (state.port) { 
+                state.port.send([0xB0, 0, Math.floor(total / 128)]); 
+                state.port.send([0xC0, total % 128]); 
+            }
+            log(`TX: PATCH -> ${state.bank}${letters[idx]}`);
+            state.activeGlobal = isSet ? (state.setIdx * 4) + idx : `std_${state.bank}_${idx}`;
+            
+            for (let k in state.mods) state.mods[k] = false;
+            document.querySelectorAll('.mod-btn').forEach(b => b.classList.remove('active'));
+            [0,1,2].forEach(i => { let s=$(`slK${i}`); if(s) s.value=50; updateUIVal(`K${i}`, 50); });
+            
+            refreshUI();
+        }
+
+        function toggleMod(cc, isPro, name) {
+            if (isPro && !state.pro) return openModal('proModal');
+            if (!state.mods[cc] && !state.pro && Object.values(state.mods).filter(Boolean).length >= 3) return showAlert("FREE LIMIT", "Max 3 modules in Free version.");
+            state.mods[cc] = !state.mods[cc];
+            if (state.port) state.port.send([0xB0, cc, state.mods[cc] ? 127 : 0]);
+            const modBtn = $(`mod_${cc}`); if(modBtn) modBtn.classList.toggle('active', state.mods[cc]);
+            log(`TX: ${name} -> ${state.mods[cc] ? 'ON' : 'OFF'}`);
+        }
+
+        function triggerBpm(bpm) {
+            if (!bpm || isNaN(bpm)) return;
+            clearInterval(state.timer);
+            const bpmDisplay = $('bpmDisplay'); if(bpmDisplay) bpmDisplay.innerText = `${bpm} BPM`;
+            const btn = $('tapBtn'), interval = 60000 / bpm;
+            state.timer = setInterval(() => {
+                if(btn) { btn.classList.add('pulsing'); setTimeout(() => btn.classList.remove('pulsing'), 100); }
+            }, interval);
+            log(`METRONOME: Set to ${bpm} BPM`);
+        }
+
+        function handleTapTempo() {
+            const now = performance.now();
+            if (state.tap.length && now - state.tap[state.tap.length-1] > 2500) { state.tap = []; clearInterval(state.timer); }
+            state.tap.push(now); if (state.tap.length > 4) state.tap.shift();
+            const btn = $('tapBtn'); if(btn) { btn.classList.add('pulsing'); setTimeout(() => btn.classList.remove('pulsing'), 100); }
+            if (state.tap.length > 1) {
+                let diffs = []; for(let i=1; i<state.tap.length; i++) diffs.push(state.tap[i] - state.tap[i-1]);
+                let bpm = Math.max(40, Math.min(240, Math.round(60000 / (diffs.reduce((a,b)=>a+b)/diffs.length))));
+                triggerBpm(bpm);
+            } else {
+                const bpmDisplay = $('bpmDisplay'); if(bpmDisplay) bpmDisplay.innerText = `TAP...`;
+            }
+            if (state.port) state.port.send([0xB0, 75, 127]);
+        }
+
+        function toggleExp() {
+            state.expB = !state.expB; sendCC(13, state.expB ? 127 : 0, 'EXP_TGT');
+            const b = $('expToggleBtn');
+            if(b) {
+                b.innerText = `TARGET: ${state.expB ? 'B' : 'A'}`;
+                b.style.color = state.expB ? 'var(--accent-cyan)' : 'var(--text-muted)'; 
+                b.style.borderColor = state.expB ? 'var(--accent-cyan)' : 'var(--border-line)';
+            }
+        }
+
+        function initSets() {
+            const randBpm = () => Math.floor(Math.random() * (138 - 68 + 1)) + 68;
+            const def = [{ 
+                name: "SUNDAY WORSHIP", 
+                patches: [
+                    { n: "CLEAN INTRO", b: 1, p: 0, k: "C", bpm: randBpm() },
+                    { n: "VERSE AMBIENT", b: 1, p: 1, k: "G", bpm: randBpm() },
+                    { n: "CHORUS DRIVE", b: 2, p: 2, k: "D", bpm: randBpm() },
+                    { n: "BIG ANTHEM", b: 2, p: 3, k: "A", bpm: randBpm() }
+                ] 
+            }];
+            try {
+                const ls = JSON.parse(localStorage.getItem('gp200_sets_v41'));
+                if (Array.isArray(ls) && ls.length > 0) {
+                    state.sets = ls.map(s => ({
+                        name: s.name || "SETLIST",
+                        patches: Array(4).fill(0).map((_, i) => {
+                            const p = (s.patches && s.patches[i]) ? s.patches[i] : {};
+                            return {
+                                n: p.n || `PRESET ${i+1}`,
+                                b: p.b || 1,
+                                p: (p.p !== undefined) ? p.p : i,
+                                k: p.k || "",
+                                bpm: (p.bpm !== undefined && p.bpm > 0) ? p.bpm : randBpm()
+                            };
+                        })
+                    }));
+                } else {
+                    state.sets = def;
+                }
+            } catch(e) { 
+                state.sets = def; 
+            }
+            saveSets(); 
+            renderSetTabs(); 
+            refreshUI();
+        }
+        const saveSets = () => localStorage.setItem('gp200_sets_v41', JSON.stringify(state.sets));
+
+        function renderSetTabs() {
+            const setlistTabs = $('setlistTabs'); if(!setlistTabs) return;
+            setlistTabs.innerHTML = state.sets.map((s, i) => `<div class="set-tab ${state.setIdx === i ? 'active' : ''}" onclick="state.setIdx=${i}; renderSetTabs(); refreshUI();">${s.name}</div>`).join('') + 
+            `<div class="set-tab" style="border: 1px dashed var(--accent-cyan); color: var(--accent-cyan); background: transparent;" onclick="addSet()">+ ADD SET</div>`;
+        }
+
+        async function addSet() {
+            let res = await showAlert("NEW SET", "Enter Set Name:", "prompt", `SET ${state.sets.length + 1}`);
+            if (res !== false) {
+                const randBpm = () => Math.floor(Math.random() * (138 - 68 + 1)) + 68;
+                state.sets.push({ 
+                    name: (res && res.trim() !== '') ? res.trim().toUpperCase() : `SET ${state.sets.length + 1}`, 
+                    patches: Array(4).fill(0).map((_,i) => ({ n: `PRESET ${i+1}`, b: state.sets.length+1, p: i, k: "", bpm: randBpm() })) 
+                });
+                state.setIdx = state.sets.length - 1; saveSets(); renderSetTabs(); refreshUI();
+            }
+        }
+
+        async function renameCurrentSet() {
+            let curr = state.sets[state.setIdx].name;
+            let res = await showAlert("RENAME SET", "Enter new set name:", "prompt", curr);
+            if (res !== false && res.trim() !== '') {
+                state.sets[state.setIdx].name = res.trim().toUpperCase();
+                saveSets(); renderSetTabs(); refreshUI();
+                log(`SYS: Set renamed to ${state.sets[state.setIdx].name}`);
+            }
+        }
+
+        async function deleteSet() {
+            if (state.sets.length <= 1) return showAlert("DENIED", "Keep at least 1 set.");
+            if (await showAlert("DELETE", `Delete ${state.sets[state.setIdx].name}?`, "confirm")) {
+                state.sets.splice(state.setIdx, 1); state.setIdx = 0; saveSets(); refreshUI();
+            }
+        }
+
+        function playSetSlot(i) {
+            const p = state.sets[state.setIdx].patches[i];
+            state.bank = p.b; selectPatch(p.p, true);
+            if (state.pro && p.k) playPad(p.k); else stopPad();
+            if (p.bpm) triggerBpm(p.bpm);
+        }
+
+        function openEditModal() { const editSlot = $('editSlot'); if(editSlot) editSlot.value = 0; loadSlotData(); openModal('editModal'); }
+        
+        function loadSlotData() {
+            const editSlot = $('editSlot'); if(!editSlot) return;
+            const p = state.sets[state.setIdx].patches[editSlot.value]; if(!p) return;
+            const editName = $('editName'), editBank = $('editBank'), editPatch =$('editPatch'), editPadKey = $('editPadKey'), editBpm =$('editBpm');
+            if(editName) editName.value = p.n; if(editBank) editBank.value = p.b; if(editPatch) editPatch.value = p.p; if(editPadKey) editPadKey.value = p.k || ""; if(editBpm) editBpm.value = p.bpm || "";
+        }
+
+        function saveSlotData() {
+            const editSlot = $('editSlot'); if(!editSlot) return;
+            const editName = $('editName'), editBank = $('editBank'), editPatch =$('editPatch'), editPadKey = $('editPadKey'), editBpm =$('editBpm');
+            state.sets[state.setIdx].patches[editSlot.value] = { 
+                n: editName ? editName.value.trim().toUpperCase() : "PRESET", 
+                b: editBank ? parseInt(editBank.value)||1 : 1, 
+                p: editPatch ? parseInt(editPatch.value) : 0, 
+                k: editPadKey ? editPadKey.value : "",
+                bpm: editBpm ? parseInt(editBpm.value) || 0 : 0
+            };
+            saveSets(); refreshUI(); closeModal('editModal'); log("SYS: Preset & BPM updated.");
+        }
+
+        function refreshUI() {
+            let fb = state.bank < 10 ? '0'+state.bank : state.bank;
+            const bankDisp = $('bankDisplay'); if(bankDisp) bankDisp.innerText = `BANK ${fb}`;
+            [0,1,2,3].forEach(i => {
+                const stdLoc = $('stdLoc_' + i); if(stdLoc) stdLoc.innerText = `${state.bank}${letters[i]}`;
+                const btn = $('stdBtn_' + i); if(btn) btn.classList.toggle('active-patch', !state.isSetlistMode && state.activeGlobal === `std_${state.bank}_${i}`);
+            });
+            const set = state.sets[state.setIdx];
+            if (set) {
+                const activeSetTitle = $('activeSetTitle'); if(activeSetTitle) activeSetTitle.innerText = `// ${set.name} PRESETS`;
+                [0,1,2,3].forEach(i => {
+                    const p = set.patches[i];
+                    const setName = $('setName_' + i), setLoc = $('setLoc_' + i), setPad =$('setPad_' + i), setBpm = $('setBpm_' + i), setBtn =$('setBtn_' + i);
+                    if(setName) setName.innerText = p.n; if(setLoc) setLoc.innerText = `${p.b}${letters[p.p]}`; 
+                    if(setPad) setPad.innerText = p.k ? `PAD: ${p.k}` : '--';
+                    if(setBpm) setBpm.innerText = p.bpm ? `${p.bpm} BPM` : '';
+                    if(setBtn) setBtn.classList.toggle('active-patch', state.isSetlistMode && state.activeGlobal === (state.setIdx * 4) + i);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
