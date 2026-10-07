@@ -30,7 +30,6 @@ window.onload = async () => {
         buildUI();
         initSets();
         initMIDI();
-        initAudioContext();
         preloadAllPadBuffers();
         requestWakeLock();
 
@@ -38,7 +37,7 @@ window.onload = async () => {
         document.addEventListener('visibilitychange', async () => {
             if (!document.hidden) {
                 if (state.audio && state.audio.state === 'suspended') {
-                    state.audio.resume();
+                    await state.audio.resume();
                     log('App focused: Audio context resumed.');
                 }
                 await requestWakeLock();
@@ -50,6 +49,19 @@ window.onload = async () => {
         log("BOOT ERROR: " + err.message);
     }
 };
+
+function initAudioContext() {
+    if (!state.audio) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        state.audio = new AudioCtx();
+    }
+    // Only try to resume if it exists, letting user interaction handle the initial unlock
+    if (state.audio.state === 'suspended') {
+        state.audio.resume().catch(() => {
+            // Will automatically resume on the next user tap/gesture
+        });
+    }
+}
 
 async function requestWakeLock() {
     try {
