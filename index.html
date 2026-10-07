@@ -313,7 +313,7 @@
                     <div class="card-title">Offline Audio Cache</div>
                     <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">Pads are permanently cached on your device for offline use. Click below only if you want to re-sync.</p>
                     <button class="btn-primary" style="border-color: var(--accent-cyan); color: var(--accent-cyan); background: var(--accent-cyan-dim);" onclick="downloadAllPadsOffline()">SYNC ALL PADS (OFFLINE)</button>
-                    <div id="cacheStatus" style="font-size: 9px; color: var(--accent-cyan); margin-top: 6px; font-weight: 700;">Status: Ready for Offline Use</div>
+                    <div id="cacheStatus" style="font-size: 9px; color: var(--accent-cyan); margin-top: 6px; font-weight: 700;">Status: Ready for Instant Playback</div>
                     <div class="progress-bar-container">
                         <div class="progress-bar-fill" id="cacheProgressBar" style="width: 100%;"></div>
                     </div>
@@ -385,11 +385,10 @@
 
     <footer class="app-footer">
         <div>GP-200 STAGE PRO &bull; Created & Designed by <span>Christian Javier</span></div>
-        <div style="color: var(--accent-cyan); font-weight: 700;" onclick="switchTab('tab-sys')">v1.7 Optimized</div>
+        <div style="color: var(--accent-cyan); font-weight: 700;" onclick="switchTab('tab-sys')">v1.8 Optimized</div>
     </footer>
 
     <!-- MODALS -->
-    <!-- NEW UPDATE POPUP MODAL -->
     <div id="updateModal" class="modal-overlay">
         <div class="modal-box">
             <div class="card-title" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">APP UPDATED TO <span id="updateVersionText"></span></div>
@@ -450,7 +449,7 @@
     </div>
 
     <script>
-        const APP_VERSION = 'v1.7';
+        const APP_VERSION = 'v1.8';
         const STORAGE_KEY = 'gp200_stage_pro_sets';
         const $ = id => document.getElementById(id);
 
@@ -465,7 +464,7 @@
             pro: localStorage.getItem('gp200_pro') === '1',
             bank: 1, activeGlobal: null, isSetlistMode: false, setIdx: 0, sets: [],
             mods: {}, expB: false,
-            audio: null, padBuffers: {}, loadingBuffers: {}, activeSource: null, padGain: null, padFilterNode: null,
+            audio: null, padBuffers: {}, activeSource: null, padGain: null, padFilterNode: null,
             padKey: null, padVol: 0.8, padTone: 0.5, padFreqOffset: 0,
             midi: null, port: null, tap: [], timer: null, alertCb: null
         };
@@ -482,28 +481,18 @@
                 initMIDI();
                 
                 initAudioContext();
-                
-                // Check if already cached once. If not, auto-cache gently in background one time.
-                if (localStorage.getItem('gp200_pads_cached') !== '1') {
-                    setTimeout(() => {
-                        backgroundCacheAllPads();
-                    }, 3000);
-                } else {
-                    const cacheStatus = $('cacheStatus');
-                    if (cacheStatus) cacheStatus.innerText = "Status: Ready for Offline Use (Cached)";
-                }
+                preloadAllPadBuffers();
 
-                log(`System Boot Complete. ${APP_VERSION} Stable Offline Ready.`);
+                log(`System Boot Complete. ${APP_VERSION} Instant Playback Active.`);
             } catch (err) {
                 log("BOOT ERROR: " + err.message);
             }
         };
 
-        async function backgroundCacheAllPads() {
+        async function preloadAllPadBuffers() {
             if (!('caches' in window)) return;
             const cacheStatus = $('cacheStatus');
             const progressBar = $('cacheProgressBar');
-            if (cacheStatus) cacheStatus.innerText = "Status: One-time background caching...";
             
             try {
                 const cache = await caches.open('gp200-audio-cache-v1');
@@ -519,21 +508,26 @@
                             await cache.add(url);
                             response = await cache.match(url);
                         }
-                        if (response) count++;
+                        if (response) {
+                            const arrayBuffer = await response.arrayBuffer();
+                            if (state.audio) {
+                                state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
+                                count++;
+                            }
+                        }
                     } catch(e) {}
 
                     let percent = Math.round((count / total) * 100);
-                    if (cacheStatus) cacheStatus.innerText = `Status: Caching Pads (${count}/${total} - ${percent}%)`;
+                    if (cacheStatus) cacheStatus.innerText = `Status: Preloading Audio (${count}/${total} - ${percent}%)`;
                     if (progressBar) progressBar.style.width = percent + '%';
-
-                    await new Promise(resolve => setTimeout(resolve, 50));
                 }
 
                 localStorage.setItem('gp200_pads_cached', '1');
-                if (cacheStatus) cacheStatus.innerText = `Status: Ready for Offline Use (Cached)`;
-                log(`Background Cache: One-time caching completed successfully.`);
+                if (cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback`;
+                if (progressBar) progressBar.style.width = '100%';
+                log(`Audio Preload: All ${count} pads loaded into memory instantly.`);
             } catch(e) {
-                if (cacheStatus) cacheStatus.innerText = "Status: Ready";
+                if (cacheStatus) cacheStatus.innerText = "Status: Ready (Cache Active)";
             }
         }
 
@@ -542,7 +536,7 @@
             log("Manual offline sync triggered...");
             const cacheStatus = $('cacheStatus');
             const progressBar = $('cacheProgressBar');
-            if(cacheStatus) cacheStatus.innerText = "Status: Syncing All Pads...";
+            if(cacheStatus) cacheStatus.innerText = "Status: Syncing & Preloading All Pads...";
 
             if ('caches' in window) {
                 try {
@@ -556,20 +550,22 @@
                         try {
                             await cache.add(url);
                             const response = await cache.match(url);
-                            if (response) successCount++;
+                            if (response) {
+                                const arrayBuffer = await response.arrayBuffer();
+                                state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
+                                successCount++;
+                            }
                         } catch(e) {}
 
                         let percent = Math.round((successCount / total) * 100);
                         if (cacheStatus) cacheStatus.innerText = `Status: Syncing (${successCount}/${total} - ${percent}%)`;
                         if (progressBar) progressBar.style.width = percent + '%';
-
-                        await new Promise(resolve => setTimeout(resolve, 30));
                     }
 
                     localStorage.setItem('gp200_pads_cached', '1');
-                    if(cacheStatus) cacheStatus.innerText = `Status: Ready for Offline Use (Cached)`;
+                    if(cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback`;
                     if(progressBar) progressBar.style.width = '100%';
-                    showAlert("OFFLINE READY", `Successfully cached all ${successCount} pad audio files offline!`);
+                    showAlert("OFFLINE READY", `Successfully synced and preloaded all ${successCount} pad audio files!`);
                 } catch(err) {
                     if(cacheStatus) cacheStatus.innerText = "Status: Cache Error";
                 }
@@ -727,9 +723,9 @@
 
         function showAlert(title, msg, type = 'alert', defaultVal = '') {
             return new Promise(res => {
-                const alertTitle = $('alertTitle'), alertMsg = $('alertMsg');
+                const alertTitle = $('alertTitle'), alertMsg =$('alertMsg');
                 if(alertTitle) alertTitle.innerText = title; if(alertMsg) alertMsg.innerText = msg;
-                const inp = $('alertInput'), cancel = $('alertCancel');
+                const inp = $('alertInput'), cancel =$('alertCancel');
                 if(inp) inp.style.display = type === 'prompt' ? 'block' : 'none';
                 if(cancel) cancel.style.display = (type === 'prompt' || type === 'confirm') ? 'block' : 'none';
                 if (type === 'prompt' && inp) { inp.value = defaultVal; setTimeout(() => inp.select(), 100); }
@@ -846,7 +842,6 @@
             const now = state.audio.currentTime;
             const crossfadeDuration = 1.5;
 
-            // CROSSFADE: Smoothly fade out the currently playing pad instead of cutting it abruptly
             if (state.padGain && state.activeSource) {
                 const oldGain = state.padGain;
                 oldGain.gain.cancelScheduledValues(now);
@@ -859,21 +854,14 @@
             state.padKey = k;
             document.querySelectorAll('.pad-btn').forEach(b => b.classList.remove('active-pad'));
             const padEl = $(`pad_${k}`); if(padEl) padEl.classList.add('active-pad');
-            const padStatus = $('padStatus'), stopPadBtn = $('stopPadBtn');
+            const padStatus = $('padStatus'), stopPadBtn =$('stopPadBtn');
             if(padStatus) padStatus.innerText = `PLAYING [${k}]`; if(stopPadBtn) stopPadBtn.style.display = 'block';
-            log(`PAD: Started [${k}] with Crossfade`);
+            log(`PAD: Started [${k}] Instantly`);
 
             let buffer = state.padBuffers[k];
             if (!buffer) {
                 try {
-                    let response = null;
-                    if ('caches' in window) {
-                        const cache = await caches.open('gp200-audio-cache-v1');
-                        response = await cache.match(`audio/pad_${k}.mp3`);
-                    }
-                    if (!response) {
-                        response = await fetch(`audio/pad_${k}.mp3`);
-                    }
+                    let response = await fetch(`audio/pad_${k}.mp3`);
                     if (!response.ok) throw new Error("File not found");
                     const arrayBuffer = await response.arrayBuffer();
                     buffer = await state.audio.decodeAudioData(arrayBuffer);
@@ -899,7 +887,6 @@
 
             const gainNode = state.audio.createGain();
             gainNode.gain.setValueAtTime(0.0001, now);
-            // CROSSFADE: Simultaneously fade in the new pad smoothly
             gainNode.gain.linearRampToValueAtTime(Math.max(0.001, state.padVol * 0.8), now + crossfadeDuration);
 
             source.connect(filter);
@@ -930,7 +917,7 @@
             state.padKey = null;
             state.padFilterNode = null;
             document.querySelectorAll('.pad-btn').forEach(b => b.classList.remove('active-pad'));
-            const padStatus = $('padStatus'), stopPadBtn = $('stopPadBtn');
+            const padStatus = $('padStatus'), stopPadBtn =$('stopPadBtn');
             if(padStatus) padStatus.innerText = `STATUS: OFF`; if(stopPadBtn) stopPadBtn.style.display = 'none';
             if (logIt) log(`PAD: Stopped`);
         }
