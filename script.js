@@ -25,12 +25,18 @@ const letters = ['A', 'B', 'C', 'D'];
 
 window.onload = async () => {
     try {
-        // Register Service Worker for true offline PWA support
+        // Register Service Worker for offline support
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js')
-                .then(() => log('Service Worker registered successfully.'))
-                .catch(err => log('Service Worker registration failed: ' + err));
+                .then(() => log('Service Worker registered.'))
+                .catch(err => log('Service Worker error: ' + err));
         }
+
+        // Prevent hardware back button from destroying live app state / audio thread
+        window.addEventListener('popstate', () => {
+            history.pushState(null, null, window.location.href);
+        });
+        history.pushState(null, null, window.location.href);
 
         await loadChangelogs();
         updateHeaderEdition();
@@ -40,7 +46,7 @@ window.onload = async () => {
         preloadAllPadBuffers();
         requestWakeLock();
 
-        // Keep audio running continuously in the background; handle focus wake locks safely
+        // Keep audio running continuously in the background
         document.addEventListener('visibilitychange', async () => {
             if (!document.hidden) {
                 if (state.audio && state.audio.state === 'suspended') {
@@ -102,9 +108,7 @@ async function preloadAllPadBuffers() {
                     await cache.add(url);
                     response = await cache.match(url);
                 }
-                if (response) {
-                    successCount++;
-                }
+                if (response) successCount++;
             } catch (e) {}
 
             let percent = Math.round((successCount / total) * 100);
@@ -114,7 +118,7 @@ async function preloadAllPadBuffers() {
 
         if (cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback (Cached)`;
         if (progressBar) progressBar.style.width = '100%';
-        log(`Audio Cache: All ${successCount} pads verified in browser cache.`);
+        log(`Audio Cache: All ${successCount} pads verified.`);
     } catch(e) {
         log("Cache error: " + e.message);
     }
@@ -128,7 +132,7 @@ async function downloadAllPadsOffline() {
     if(cacheStatus) cacheStatus.innerText = `Status: Syncing Files...`;
 
     if (!('caches' in window)) {
-        showAlert("ERROR", "Cache API not supported by browser.");
+        showAlert("ERROR", "Cache API not supported.");
         return;
     }
 
@@ -152,7 +156,7 @@ async function downloadAllPadsOffline() {
 
         if(cacheStatus) cacheStatus.innerText = `Status: Offline Ready (${successCount}/12 Cached)`;
         if(progressBar) progressBar.style.width = '100%';
-        showAlert("OFFLINE READY", `Successfully cached all ${successCount} pad audio files for offline use!`);
+        showAlert("OFFLINE READY", `Successfully cached all ${successCount} pad audio files!`);
     } catch(err) {
         if(cacheStatus) cacheStatus.innerText = "Status: Cache Error";
         showAlert("ERROR", "Failed to sync offline audio files.");
@@ -164,20 +168,15 @@ async function loadChangelogs() {
         const response = await fetch('changelogs.txt');
         if (!response.ok) throw new Error('Failed to load changelogs.txt');
         const text = await response.text();
-
         const lines = text.split('\n').filter(line => line.trim() !== '');
         const changelogs = lines.map(line => {
             const parts = line.split(':');
-            return {
-                v: parts[0] ? parts[0].trim() : '',
-                d: parts.slice(1).join(':').trim()
-            };
+            return { v: parts[0] ? parts[0].trim() : '', d: parts.slice(1).join(':').trim() };
         }).filter(c => c.v !== '');
-
         renderChangelogs(changelogs);
         checkAppUpdate(changelogs);
     } catch (e) {
-        const fallback = [{ v: APP_VERSION, d: 'Optimized offline caching and background playback.' }];
+        const fallback = [{ v: APP_VERSION, d: 'Optimized background playback & offline caching.' }];
         renderChangelogs(fallback);
         checkAppUpdate(fallback);
     }
@@ -187,14 +186,11 @@ function checkAppUpdate(changelogs) {
     if (changelogs.length === 0) return;
     const latestVerFromText = changelogs[0].v;
     const lastVer = localStorage.getItem('gp200_last_version');
-
     if (lastVer !== latestVerFromText) {
         const updateVersionText = $('updateVersionText');
         const updateNotes = $('updateNotes');
-
         if (updateVersionText) updateVersionText.innerText = latestVerFromText;
         if (updateNotes) updateNotes.innerHTML = changelogs[0].d;
-
         openModal('updateModal');
         localStorage.setItem('gp200_last_version', latestVerFromText);
     }
@@ -411,7 +407,6 @@ function togglePad(k) {
     }
 }
 
-// Lazy-decoding playback with full Media Session Notification Controls & Handlers
 async function playPad(k) {
     initAudioContext();
     const now = state.audio.currentTime;
