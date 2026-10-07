@@ -34,14 +34,9 @@ window.onload = async () => {
         preloadAllPadBuffers();
         requestWakeLock();
 
-        // Handle background suspension & wake lock recovery
+        // Handle visibility changes without cutting background playback
         document.addEventListener('visibilitychange', async () => {
-            if (document.hidden) {
-                if (state.audio && state.audio.state === 'running') {
-                    state.audio.suspend();
-                    log('App minimized: Audio suspended to prevent system lag/crashes.');
-                }
-            } else {
+            if (!document.hidden) {
                 if (state.audio && state.audio.state === 'suspended') {
                     state.audio.resume();
                     log('App focused: Audio context resumed.');
@@ -71,6 +66,15 @@ async function requestWakeLock() {
 }
 
 async function preloadAllPadBuffers() {
+    if (localStorage.getItem('gp200_pads_cached') === '1') {
+        const cacheStatus = $('cacheStatus');
+        const progressBar = $('cacheProgressBar');
+        if (cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback (Cached)`;
+        if (progressBar) progressBar.style.width = '100%';
+        log("Audio Boot: Pads already cached. Skipping full reload.");
+        return;
+    }
+
     if (!('caches' in window)) return;
     const cacheStatus = $('cacheStatus');
     const progressBar = $('cacheProgressBar');
@@ -174,7 +178,7 @@ async function loadChangelogs() {
         checkAppUpdate(changelogs);
     } catch (e) {
         log("SYS: Error loading changelogs.txt. Using fallback notes.");
-        const fallback = [{ v: APP_VERSION, d: 'Screen Wake Lock & background suspend optimization.' }];
+        const fallback = [{ v: APP_VERSION, d: 'Background playback & Media Notification controls added.' }];
         renderChangelogs(fallback);
         checkAppUpdate(fallback);
     }
@@ -369,14 +373,14 @@ function switchMode(mode) {
     if (state.isSetlistMode) {
         if(bankView) bankView.style.display = 'none';
         if(setlistView) setlistView.style.display = 'block';
-        if(modeBankBtn) { modeBankBtn.style.background = 'var(--bg-elevated);'; modeBankBtn.style.color = 'var(--text-muted);'; }
-        if(modeSetBtn) { modeSetBtn.style.background = 'var(--accent-cyan);'; modeSetBtn.style.color = '#000'; }
+        if(modeBankBtn) { modeBankBtn.style.background = 'var(--bg-elevated)'; modeBankBtn.style.color = 'var(--text-muted)'; }
+        if(modeSetBtn) { modeSetBtn.style.background = 'var(--accent-cyan)'; modeSetBtn.style.color = '#000'; }
         if(modeTitle) modeTitle.innerText = 'SETLIST MODE';
     } else {
         if(bankView) bankView.style.display = 'block';
         if(setlistView) setlistView.style.display = 'none';
-        if(modeBankBtn) { modeBankBtn.style.background = 'var(--accent-cyan);'; modeBankBtn.style.color = '#000'; }
-        if(modeSetBtn) { modeSetBtn.style.background = 'var(--bg-elevated);'; modeSetBtn.style.color = 'var(--text-muted);'; }
+        if(modeBankBtn) { modeBankBtn.style.background = 'var(--accent-cyan)'; modeBankBtn.style.color = '#000'; }
+        if(modeSetBtn) { modeSetBtn.style.background = 'var(--bg-elevated)'; modeSetBtn.style.color = 'var(--text-muted)'; }
         if(modeTitle) modeTitle.innerText = 'STANDARD BANK';
     }
     refreshUI();
@@ -437,7 +441,7 @@ async function playPad(k) {
     const padEl = $(`pad_${k}`); if(padEl) padEl.classList.add('active-pad');
     const padStatus = $('padStatus'), stopPadBtn =$('stopPadBtn');
     if(padStatus) padStatus.innerText = `PLAYING [${k}]`; if(stopPadBtn) stopPadBtn.style.display = 'block';
-    log(`PAD: Started [${k}] Instantly`);
+    log(`PAD: Started [${k}] in background`);
 
     let buffer = state.padBuffers[k];
     if (!buffer) {
@@ -477,6 +481,25 @@ async function playPad(k) {
     source.start(now);
     state.activeSource = source;
     state.padGain = gainNode;
+
+    // --- MEDIA SESSION NOTIFICATION & LOCK SCREEN CONTROLS ---
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: `Worship Pad [${k} Key]`,
+            artist: 'GP-200 Stage Pro',
+            album: 'Live Ambient Pads'
+        });
+
+        navigator.mediaSession.playbackState = 'playing';
+
+        navigator.mediaSession.setActionHandler('stop', () => {
+            stopPad();
+        });
+        
+        navigator.mediaSession.setActionHandler('pause', () => {
+            stopPad();
+        });
+    }
 }
 
 function stopPad(logIt = true) {
@@ -500,6 +523,11 @@ function stopPad(logIt = true) {
     document.querySelectorAll('.pad-btn').forEach(b => b.classList.remove('active-pad'));
     const padStatus = $('padStatus'), stopPadBtn =$('stopPadBtn');
     if(padStatus) padStatus.innerText = `STATUS: OFF`; if(stopPadBtn) stopPadBtn.style.display = 'none';
+
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none';
+    }
+
     if (logIt) log(`PAD: Stopped`);
 }
 
