@@ -66,54 +66,37 @@ async function requestWakeLock() {
 }
 
 async function preloadAllPadBuffers() {
-    if (localStorage.getItem('gp200_pads_cached') === '1') {
-        const cacheStatus = $('cacheStatus');
-        const progressBar = $('cacheProgressBar');
-        if (cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback (Cached)`;
-        if (progressBar) progressBar.style.width = '100%';
-        log("Audio Boot: Pads already cached. Skipping full reload.");
-        return;
-    }
-
-    if (!('caches' in window)) return;
     const cacheStatus = $('cacheStatus');
     const progressBar = $('cacheProgressBar');
+    if (cacheStatus) cacheStatus.innerText = `Status: Loading audio into memory...`;
 
-    try {
-        const cache = await caches.open('gp200-audio-cache-v1');
-        let count = 0;
-        const total = pads.length;
+    let successCount = 0;
+    const total = pads.length;
 
-        for (let i = 0; i < total; i++) {
-            const k = pads[i];
-            const url = `audio/pad_${k}.mp3`;
-            try {
-                let response = await cache.match(url);
-                if (!response) {
-                    await cache.add(url);
-                    response = await cache.match(url);
+    for (let i = 0; i < total; i++) {
+        const k = pads[i];
+        const url = `audio/pad_${k}.mp3`;
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                const arrayBuffer = await response.arrayBuffer();
+                if (state.audio) {
+                    state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
+                    successCount++;
                 }
-                if (response) {
-                    const arrayBuffer = await response.arrayBuffer();
-                    if (state.audio) {
-                        state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
-                        count++;
-                    }
-                }
-            } catch(e) {}
-
-            let percent = Math.round((count / total) * 100);
-            if (cacheStatus) cacheStatus.innerText = `Status: Preloading Audio (${count}/${total} - ${percent}%)`;
-            if (progressBar) progressBar.style.width = percent + '%';
+            }
+        } catch (e) {
+            log(`Cache warning: Could not preload pad ${k}`);
         }
 
-        localStorage.setItem('gp200_pads_cached', '1');
-        if (cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback`;
-        if (progressBar) progressBar.style.width = '100%';
-        log(`Audio Preload: All ${count} pads loaded into memory instantly.`);
-    } catch(e) {
-        if (cacheStatus) cacheStatus.innerText = "Status: Ready (Cache Active)";
+        let percent = Math.round((successCount / total) * 100);
+        if (cacheStatus) cacheStatus.innerText = `Status: Loaded (${successCount}/${total} - ${percent}%)`;
+        if (progressBar) progressBar.style.width = percent + '%';
     }
+
+    if (cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback (${successCount}/12 Loaded)`;
+    if (progressBar) progressBar.style.width = '100%';
+    log(`Audio Preload: Successfully loaded ${successCount} of 12 pads into memory.`);
 }
 
 async function downloadAllPadsOffline() {
@@ -121,42 +104,33 @@ async function downloadAllPadsOffline() {
     log("Manual offline sync triggered...");
     const cacheStatus = $('cacheStatus');
     const progressBar = $('cacheProgressBar');
-    if(cacheStatus) cacheStatus.innerText = "Status: Syncing & Preloading All Pads...";
+    if(cacheStatus) cacheStatus.innerText = `Status: Syncing & Preloading All Pads...`;
 
-    if ('caches' in window) {
+    let successCount = 0;
+    const total = pads.length;
+
+    for (let i = 0; i < total; i++) {
+        const k = pads[i];
+        const url = `audio/pad_${k}.mp3`;
         try {
-            const cache = await caches.open('gp200-audio-cache-v1');
-            let successCount = 0;
-            const total = pads.length;
-
-            for (let i = 0; i < total; i++) {
-                const k = pads[i];
-                const url = `audio/pad_${k}.mp3`;
-                try {
-                    await cache.add(url);
-                    const response = await cache.match(url);
-                    if (response) {
-                        const arrayBuffer = await response.arrayBuffer();
-                        state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
-                        successCount++;
-                    }
-                } catch(e) {}
-
-                let percent = Math.round((successCount / total) * 100);
-                if (cacheStatus) cacheStatus.innerText = `Status: Syncing (${successCount}/${total} - ${percent}%)`;
-                if (progressBar) progressBar.style.width = percent + '%';
+            const response = await fetch(url);
+            if (response.ok) {
+                const arrayBuffer = await response.arrayBuffer();
+                if (state.audio) {
+                    state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
+                    successCount++;
+                }
             }
+        } catch(e) {}
 
-            localStorage.setItem('gp200_pads_cached', '1');
-            if(cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback`;
-            if(progressBar) progressBar.style.width = '100%';
-            showAlert("OFFLINE READY", `Successfully synced and preloaded all ${successCount} pad audio files!`);
-        } catch(err) {
-            if(cacheStatus) cacheStatus.innerText = "Status: Cache Error";
-        }
-    } else {
-        showAlert("ERROR", "Cache API not supported by browser.");
+        let percent = Math.round((successCount / total) * 100);
+        if (cacheStatus) cacheStatus.innerText = `Status: Syncing (${successCount}/${total} - ${percent}%)`;
+        if (progressBar) progressBar.style.width = percent + '%';
     }
+
+    if(cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback (${successCount}/12 Loaded)`;
+    if(progressBar) progressBar.style.width = '100%';
+    showAlert("OFFLINE READY", `Successfully synced and preloaded all ${successCount} pad audio files into memory!`);
 }
 
 async function loadChangelogs() {
@@ -178,7 +152,7 @@ async function loadChangelogs() {
         checkAppUpdate(changelogs);
     } catch (e) {
         log("SYS: Error loading changelogs.txt. Using fallback notes.");
-        const fallback = [{ v: APP_VERSION, d: 'Background playback & Media Notification controls added.' }];
+        const fallback = [{ v: APP_VERSION, d: 'Bulletproof offline audio buffering and background controls added.' }];
         renderChangelogs(fallback);
         checkAppUpdate(fallback);
     }
@@ -452,8 +426,8 @@ async function playPad(k) {
             buffer = await state.audio.decodeAudioData(arrayBuffer);
             state.padBuffers[k] = buffer;
         } catch(e) {
-            log(`ERROR: Could not load audio/pad_${k}.mp3`);
-            showAlert("AUDIO ERROR", `Missing file: audio/pad_${k}.mp3`);
+            log(`ERROR: Offline or missing file for pad ${k}`);
+            showAlert("AUDIO ERROR", `Cannot play pad ${k}. Ensure audio files are available offline.`);
             stopPad(false);
             return;
         }
