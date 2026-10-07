@@ -33,7 +33,7 @@ window.onload = async () => {
         preloadAllPadBuffers();
         requestWakeLock();
 
-        // Only handle wake lock recovery on focus. Audio context is intentionally left untouched so background playback never cuts.
+        // Keep audio running continuously in the background; handle focus wake locks safely
         document.addEventListener('visibilitychange', async () => {
             if (!document.hidden) {
                 if (state.audio && state.audio.state === 'suspended') {
@@ -70,38 +70,47 @@ async function requestWakeLock() {
     } catch (err) {}
 }
 
+// Crash-free offline cache background verification
 async function preloadAllPadBuffers() {
     const cacheStatus = $('cacheStatus');
     const progressBar = $('cacheProgressBar');
-    if (cacheStatus) cacheStatus.innerText = `Status: Loading audio into memory...`;
+    if (cacheStatus) cacheStatus.innerText = `Status: Checking Offline Cache...`;
 
-    let successCount = 0;
-    const total = pads.length;
-
-    for (let i = 0; i < total; i++) {
-        const k = pads[i];
-        const url = `audio/pad_${k}.mp3`;
-        try {
-            const response = await fetch(url);
-            if (response.ok) {
-                const arrayBuffer = await response.arrayBuffer();
-                if (!state.audio) {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    state.audio = new AudioCtx();
-                }
-                state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
-                successCount++;
-            }
-        } catch (e) {}
-
-        let percent = Math.round((successCount / total) * 100);
-        if (cacheStatus) cacheStatus.innerText = `Status: Loaded (${successCount}/${total} - ${percent}%)`;
-        if (progressBar) progressBar.style.width = percent + '%';
+    if (!('caches' in window)) {
+        log("Cache API not supported.");
+        return;
     }
 
-    if (cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback (${successCount}/12 Loaded)`;
-    if (progressBar) progressBar.style.width = '100%';
-    log(`Audio Preload: Successfully loaded ${successCount} of 12 pads into memory.`);
+    try {
+        const cache = await caches.open('gp200-audio-cache-v1');
+        let successCount = 0;
+        const total = pads.length;
+
+        for (let i = 0; i < total; i++) {
+            const k = pads[i];
+            const url = `audio/pad_${k}.mp3`;
+            try {
+                let response = await cache.match(url);
+                if (!response) {
+                    await cache.add(url);
+                    response = await cache.match(url);
+                }
+                if (response) {
+                    successCount++;
+                }
+            } catch (e) {}
+
+            let percent = Math.round((successCount / total) * 100);
+            if (cacheStatus) cacheStatus.innerText = `Status: Ready (${successCount}/${total} Cached)`;
+            if (progressBar) progressBar.style.width = percent + '%';
+        }
+
+        if (cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback (Cached)`;
+        if (progressBar) progressBar.style.width = '100%';
+        log(`Audio Cache: All ${successCount} pads verified in browser cache.`);
+    } catch(e) {
+        log("Cache error: " + e.message);
+    }
 }
 
 async function downloadAllPadsOffline() {
@@ -109,31 +118,38 @@ async function downloadAllPadsOffline() {
     log("Manual offline sync triggered...");
     const cacheStatus = $('cacheStatus');
     const progressBar = $('cacheProgressBar');
-    if(cacheStatus) cacheStatus.innerText = `Status: Syncing & Preloading All Pads...`;
+    if(cacheStatus) cacheStatus.innerText = `Status: Syncing Files...`;
 
-    let successCount = 0;
-    const total = pads.length;
-
-    for (let i = 0; i < total; i++) {
-        const k = pads[i];
-        const url = `audio/pad_${k}.mp3`;
-        try {
-            const response = await fetch(url);
-            if (response.ok) {
-                const arrayBuffer = await response.arrayBuffer();
-                state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
-                successCount++;
-            }
-        } catch(e) {}
-
-        let percent = Math.round((successCount / total) * 100);
-        if (cacheStatus) cacheStatus.innerText = `Status: Syncing (${successCount}/${total} - ${percent}%)`;
-        if (progressBar) progressBar.style.width = percent + '%';
+    if (!('caches' in window)) {
+        showAlert("ERROR", "Cache API not supported by browser.");
+        return;
     }
 
-    if(cacheStatus) cacheStatus.innerText = `Status: Ready for Instant Playback (${successCount}/12 Loaded)`;
-    if(progressBar) progressBar.style.width = '100%';
-    showAlert("OFFLINE READY", `Successfully synced and preloaded all ${successCount} pad audio files into memory!`);
+    try {
+        const cache = await caches.open('gp200-audio-cache-v1');
+        let successCount = 0;
+        const total = pads.length;
+
+        for (let i = 0; i < total; i++) {
+            const k = pads[i];
+            const url = `audio/pad_${k}.mp3`;
+            try {
+                await cache.add(url);
+                successCount++;
+            } catch(e) {}
+
+            let percent = Math.round((successCount / total) * 100);
+            if (cacheStatus) cacheStatus.innerText = `Status: Syncing (${successCount}/${total} - ${percent}%)`;
+            if (progressBar) progressBar.style.width = percent + '%';
+        }
+
+        if(cacheStatus) cacheStatus.innerText = `Status: Offline Ready (${successCount}/12 Cached)`;
+        if(progressBar) progressBar.style.width = '100%';
+        showAlert("OFFLINE READY", `Successfully cached all ${successCount} pad audio files for offline use!`);
+    } catch(err) {
+        if(cacheStatus) cacheStatus.innerText = "Status: Cache Error";
+        showAlert("ERROR", "Failed to sync offline audio files.");
+    }
 }
 
 async function loadChangelogs() {
@@ -154,7 +170,7 @@ async function loadChangelogs() {
         renderChangelogs(changelogs);
         checkAppUpdate(changelogs);
     } catch (e) {
-        const fallback = [{ v: APP_VERSION, d: 'Continuous background playback and notification controls.' }];
+        const fallback = [{ v: APP_VERSION, d: 'Optimized offline caching and background playback.' }];
         renderChangelogs(fallback);
         checkAppUpdate(fallback);
     }
@@ -388,6 +404,7 @@ function togglePad(k) {
     }
 }
 
+// Lazy-decoding playback with full Media Session Notification Controls & Handlers
 async function playPad(k) {
     initAudioContext();
     const now = state.audio.currentTime;
@@ -407,18 +424,21 @@ async function playPad(k) {
     const padEl = $(`pad_${k}`); if(padEl) padEl.classList.add('active-pad');
     const padStatus = $('padStatus'), stopPadBtn =$('stopPadBtn');
     if(padStatus) padStatus.innerText = `PLAYING [${k}]`; if(stopPadBtn) stopPadBtn.style.display = 'block';
-    log(`PAD: Started [${k}] in background`);
 
     let buffer = state.padBuffers[k];
     if (!buffer) {
         try {
-            let response = await fetch(`audio/pad_${k}.mp3`);
+            const cache = await caches.open('gp200-audio-cache-v1');
+            let response = await cache.match(`audio/pad_${k}.mp3`);
+            if (!response) {
+                response = await fetch(`audio/pad_${k}.mp3`);
+            }
             if (!response.ok) throw new Error("File not found");
             const arrayBuffer = await response.arrayBuffer();
             buffer = await state.audio.decodeAudioData(arrayBuffer);
             state.padBuffers[k] = buffer;
         } catch(e) {
-            log(`ERROR: Offline or missing file for pad ${k}`);
+            log(`ERROR: Could not load audio for pad ${k}`);
             showAlert("AUDIO ERROR", `Cannot play pad ${k}. Ensure audio files are available offline.`);
             stopPad(false);
             return;
@@ -458,18 +478,10 @@ async function playPad(k) {
 
         navigator.mediaSession.playbackState = 'playing';
 
-        // Notification Play/Stop Action Handlers
-        navigator.mediaSession.setActionHandler('play', () => {
-            // Replay or keep active
-        });
-
-        navigator.mediaSession.setActionHandler('pause', () => {
-            stopPad();
-        });
-
-        navigator.mediaSession.setActionHandler('stop', () => {
-            stopPad();
-        });
+        // Notification Play/Pause/Stop Action Handlers
+        navigator.mediaSession.setActionHandler('play', () => {});
+        navigator.mediaSession.setActionHandler('pause', () => { stopPad(); });
+        navigator.mediaSession.setActionHandler('stop', () => { stopPad(); });
     }
 }
 
