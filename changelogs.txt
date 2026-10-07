@@ -1,3 +1,4 @@
+v1.8: Upgraded to v1.8 with instant 0-second pad playback, preloaded audio buffers, and smart one-time offline caching
 v1.7 : Optimized background auto-caching for all 12 pad audio files, integrated permanent single-key setlist storage (gp200_stage_pro_sets), and added vendor-prefixed CSS for seamless mobile and desktop performance.
 v1.6 : Added Changelogs feature, App Update Popup modal, and System Tab reorganization.
 v1.5 : Introduced Setlist Mode, Worship Pads audio engine, and MIDI connectivity features.
