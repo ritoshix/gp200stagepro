@@ -25,6 +25,13 @@ const letters = ['A', 'B', 'C', 'D'];
 
 window.onload = async () => {
     try {
+        // Register Service Worker for true offline PWA support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .then(() => log('Service Worker registered successfully.'))
+                .catch(err => log('Service Worker registration failed: ' + err));
+        }
+
         await loadChangelogs();
         updateHeaderEdition();
         buildUI();
