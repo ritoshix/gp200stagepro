@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.9';
+const APP_VERSION = 'v2.0';
 const STORAGE_KEY = 'gp200_stage_pro_sets';
 const $ = id => document.getElementById(id);
 
