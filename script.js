@@ -33,12 +33,11 @@ window.onload = async () => {
         preloadAllPadBuffers();
         requestWakeLock();
 
-        // Handle visibility changes without cutting background playback
+        // Only handle wake lock recovery on focus. Audio context is intentionally left untouched so background playback never cuts.
         document.addEventListener('visibilitychange', async () => {
             if (!document.hidden) {
                 if (state.audio && state.audio.state === 'suspended') {
-                    await state.audio.resume();
-                    log('App focused: Audio context resumed.');
+                    await state.audio.resume().catch(() => {});
                 }
                 await requestWakeLock();
             }
@@ -55,11 +54,8 @@ function initAudioContext() {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         state.audio = new AudioCtx();
     }
-    // Only try to resume if it exists, letting user interaction handle the initial unlock
     if (state.audio.state === 'suspended') {
-        state.audio.resume().catch(() => {
-            // Will automatically resume on the next user tap/gesture
-        });
+        state.audio.resume().catch(() => {});
     }
 }
 
@@ -70,11 +66,8 @@ async function requestWakeLock() {
             wakeLock.addEventListener('release', () => {
                 log('Screen Wake Lock released.');
             });
-            log('Screen Wake Lock active (prevents screen sleep & app reset).');
         }
-    } catch (err) {
-        log(`Wake Lock error: ${err.name}, ${err.message}`);
-    }
+    } catch (err) {}
 }
 
 async function preloadAllPadBuffers() {
@@ -92,14 +85,14 @@ async function preloadAllPadBuffers() {
             const response = await fetch(url);
             if (response.ok) {
                 const arrayBuffer = await response.arrayBuffer();
-                if (state.audio) {
-                    state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
-                    successCount++;
+                if (!state.audio) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    state.audio = new AudioCtx();
                 }
+                state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
+                successCount++;
             }
-        } catch (e) {
-            log(`Cache warning: Could not preload pad ${k}`);
-        }
+        } catch (e) {}
 
         let percent = Math.round((successCount / total) * 100);
         if (cacheStatus) cacheStatus.innerText = `Status: Loaded (${successCount}/${total} - ${percent}%)`;
@@ -128,10 +121,8 @@ async function downloadAllPadsOffline() {
             const response = await fetch(url);
             if (response.ok) {
                 const arrayBuffer = await response.arrayBuffer();
-                if (state.audio) {
-                    state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
-                    successCount++;
-                }
+                state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
+                successCount++;
             }
         } catch(e) {}
 
@@ -163,8 +154,7 @@ async function loadChangelogs() {
         renderChangelogs(changelogs);
         checkAppUpdate(changelogs);
     } catch (e) {
-        log("SYS: Error loading changelogs.txt. Using fallback notes.");
-        const fallback = [{ v: APP_VERSION, d: 'Bulletproof offline audio buffering and background controls added.' }];
+        const fallback = [{ v: APP_VERSION, d: 'Continuous background playback and notification controls.' }];
         renderChangelogs(fallback);
         checkAppUpdate(fallback);
     }
@@ -196,16 +186,6 @@ function renderChangelogs(changelogs) {
                 <span class="changelog-desc">${c.d}</span>
             </div>
         `).join('');
-    }
-}
-
-function initAudioContext() {
-    if (!state.audio) {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        state.audio = new AudioCtx();
-    }
-    if (state.audio.state === 'suspended') {
-        state.audio.resume();
     }
 }
 
@@ -478,11 +458,16 @@ async function playPad(k) {
 
         navigator.mediaSession.playbackState = 'playing';
 
-        navigator.mediaSession.setActionHandler('stop', () => {
+        // Notification Play/Stop Action Handlers
+        navigator.mediaSession.setActionHandler('play', () => {
+            // Replay or keep active
+        });
+
+        navigator.mediaSession.setActionHandler('pause', () => {
             stopPad();
         });
-        
-        navigator.mediaSession.setActionHandler('pause', () => {
+
+        navigator.mediaSession.setActionHandler('stop', () => {
             stopPad();
         });
     }
