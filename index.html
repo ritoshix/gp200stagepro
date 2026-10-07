@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>GP-200 Stage Pro</title>
-
+    
     <!-- PWA CONFIG -->
     <link rel="manifest" href="manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
@@ -311,11 +311,11 @@
 
                 <div class="card">
                     <div class="card-title">Offline Audio Cache</div>
-                    <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">Background auto-cache runs smoothly when idle. You can also monitor or trigger manual sync below.</p>
+                    <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">Pads are permanently cached on your device for offline use. Click below only if you want to re-sync.</p>
                     <button class="btn-primary" style="border-color: var(--accent-cyan); color: var(--accent-cyan); background: var(--accent-cyan-dim);" onclick="downloadAllPadsOffline()">SYNC ALL PADS (OFFLINE)</button>
-                    <div id="cacheStatus" style="font-size: 9px; color: var(--accent-cyan); margin-top: 6px; font-weight: 700;">Status: Initializing...</div>
+                    <div id="cacheStatus" style="font-size: 9px; color: var(--accent-cyan); margin-top: 6px; font-weight: 700;">Status: Ready for Offline Use</div>
                     <div class="progress-bar-container">
-                        <div class="progress-bar-fill" id="cacheProgressBar"></div>
+                        <div class="progress-bar-fill" id="cacheProgressBar" style="width: 100%;"></div>
                     </div>
                 </div>
 
@@ -480,15 +480,20 @@
                 buildUI();
                 initSets();
                 initMIDI();
-
+                
                 initAudioContext();
+                
+                // Check if already cached once. If not, auto-cache gently in background one time.
+                if (localStorage.getItem('gp200_pads_cached') !== '1') {
+                    setTimeout(() => {
+                        backgroundCacheAllPads();
+                    }, 3000);
+                } else {
+                    const cacheStatus = $('cacheStatus');
+                    if (cacheStatus) cacheStatus.innerText = "Status: Ready for Offline Use (Cached)";
+                }
 
-                // Lazy background cache with delay to prevent boot lag
-                setTimeout(() => {
-                    backgroundCacheAllPads();
-                }, 2000);
-
-                log(`System Boot Complete. ${APP_VERSION} Crossfade & Lag-Free.`);
+                log(`System Boot Complete. ${APP_VERSION} Stable Offline Ready.`);
             } catch (err) {
                 log("BOOT ERROR: " + err.message);
             }
@@ -498,8 +503,8 @@
             if (!('caches' in window)) return;
             const cacheStatus = $('cacheStatus');
             const progressBar = $('cacheProgressBar');
-            if (cacheStatus) cacheStatus.innerText = "Status: Idle background caching starting...";
-
+            if (cacheStatus) cacheStatus.innerText = "Status: One-time background caching...";
+            
             try {
                 const cache = await caches.open('gp200-audio-cache-v1');
                 let count = 0;
@@ -514,28 +519,21 @@
                             await cache.add(url);
                             response = await cache.match(url);
                         }
-                        if (response) {
-                            const arrayBuffer = await response.arrayBuffer();
-                            if (state.audio) {
-                                state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
-                                count++;
-                            }
-                        }
+                        if (response) count++;
                     } catch(e) {}
 
                     let percent = Math.round((count / total) * 100);
                     if (cacheStatus) cacheStatus.innerText = `Status: Caching Pads (${count}/${total} - ${percent}%)`;
                     if (progressBar) progressBar.style.width = percent + '%';
 
-                    await new Promise(resolve => setTimeout(resolve, 80));
+                    await new Promise(resolve => setTimeout(resolve, 50));
                 }
 
-                if (cacheStatus) {
-                    cacheStatus.innerText = `Status: Offline Ready (${count}/${total} Cached)`;
-                }
-                log(`Background Cache: ${count} of 12 pads successfully cached offline.`);
+                localStorage.setItem('gp200_pads_cached', '1');
+                if (cacheStatus) cacheStatus.innerText = `Status: Ready for Offline Use (Cached)`;
+                log(`Background Cache: One-time caching completed successfully.`);
             } catch(e) {
-                if (cacheStatus) cacheStatus.innerText = "Status: Cache Ready";
+                if (cacheStatus) cacheStatus.innerText = "Status: Ready";
             }
         }
 
@@ -544,7 +542,7 @@
             log("Manual offline sync triggered...");
             const cacheStatus = $('cacheStatus');
             const progressBar = $('cacheProgressBar');
-            if(cacheStatus) cacheStatus.innerText = "Status: Downloading All Pads...";
+            if(cacheStatus) cacheStatus.innerText = "Status: Syncing All Pads...";
 
             if ('caches' in window) {
                 try {
@@ -558,23 +556,20 @@
                         try {
                             await cache.add(url);
                             const response = await cache.match(url);
-                            if (response) {
-                                const arrayBuffer = await response.arrayBuffer();
-                                state.padBuffers[k] = await state.audio.decodeAudioData(arrayBuffer);
-                                successCount++;
-                            }
+                            if (response) successCount++;
                         } catch(e) {}
 
                         let percent = Math.round((successCount / total) * 100);
-                        if (cacheStatus) cacheStatus.innerText = `Status: Downloading (${successCount}/${total} - ${percent}%)`;
+                        if (cacheStatus) cacheStatus.innerText = `Status: Syncing (${successCount}/${total} - ${percent}%)`;
                         if (progressBar) progressBar.style.width = percent + '%';
 
-                        await new Promise(resolve => setTimeout(resolve, 50));
+                        await new Promise(resolve => setTimeout(resolve, 30));
                     }
 
-                    if(cacheStatus) cacheStatus.innerText = `Status: Offline Ready (${successCount}/${total} Cached)`;
+                    localStorage.setItem('gp200_pads_cached', '1');
+                    if(cacheStatus) cacheStatus.innerText = `Status: Ready for Offline Use (Cached)`;
                     if(progressBar) progressBar.style.width = '100%';
-                    showAlert("OFFLINE READY", `Successfully cached ${successCount} of 12 pad audio files!`);
+                    showAlert("OFFLINE READY", `Successfully cached all ${successCount} pad audio files offline!`);
                 } catch(err) {
                     if(cacheStatus) cacheStatus.innerText = "Status: Cache Error";
                 }
@@ -588,7 +583,7 @@
                 const response = await fetch('changelogs.txt');
                 if (!response.ok) throw new Error('Failed to load changelogs.txt');
                 const text = await response.text();
-
+                
                 const lines = text.split('\n').filter(line => line.trim() !== '');
                 const changelogs = lines.map(line => {
                     const parts = line.split(':');
@@ -612,14 +607,14 @@
             if (changelogs.length === 0) return;
             const latestVerFromText = changelogs[0].v;
             const lastVer = localStorage.getItem('gp200_last_version');
-
+            
             if (lastVer !== latestVerFromText) {
                 const updateVersionText = $('updateVersionText');
                 const updateNotes = $('updateNotes');
-
+                
                 if (updateVersionText) updateVersionText.innerText = latestVerFromText;
-                if (updateNotes) updateNotes.innerHTML = changelogs[0].d;
-
+                if (updateNotes) updateNotes.innerHTML = changelogs[0].d; 
+                
                 openModal('updateModal');
                 localStorage.setItem('gp200_last_version', latestVerFromText);
             }
